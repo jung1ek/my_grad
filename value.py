@@ -80,6 +80,6 @@ class Value:
         
         stack = [self]
         while stack:
-            current = stack.pop()
-            current._backward()
+            current = stack.pop() # LIFO
+            current._backward() # invoking the backward of last fx
             stack.extend(current._prev) # add children (inputs) of function to the stack
