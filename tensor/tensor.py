@@ -1,6 +1,40 @@
 # From karpathy implementation we just implement Context (ctx), inplace for _prev/children
-from function import Multiply
+""" 1. The forward method computes the operation's output.
+    2. The backward method computes the gradients of the inputs based on gradients of the output. (chain rule)
+    Actual pytorch , all operation are performed by C++
+"""
+from helpers import Context
+class Function:
+    @staticmethod
+    def forward(ctx,*tensors):
+        """Define the forward pass. Must be implemented by subclasses."""
+        raise  NotImplementedError
+        
+    @staticmethod
+    def backward(ctx,*outputs_grad):
+        """Define the backward pass. Must be implemented by subclasses."""
+        raise NotImplementedError
+    
+    """ This method get invoked while doing f=a*b
+        f= output, (a,b) == (self,other)
+    """ 
+    @classmethod # apply multiply operation from forward method, set gradient_fn, set context, so-on
+    def apply(cls,*inputs): # cls refers to Function class
+        """Perform forward computation and link to backward."""
+        ctx = Context() # iniatialize the context
 
+        from tensor import Tensor # to solve circular import error. we are importing Tensor which, in first line import funcion module, that module
+        # also import tensor module which is incomplete at that run-time.
+        inputs = [inp if isinstance(inp, Tensor) else inp for inp in inputs]  # validate the *inputs (which is a and b)
+        output_data = cls.forward(ctx,*inputs)
+
+        output = Tensor(output_data)
+        output.grad_fn = cls # Link the Function to the output Tensor
+        output.ctx = ctx  # Save the context for backward
+        output.is_leaf = False  # Result of an operation, not a leaf node
+        return output
+
+import function as F
 class Tensor:
     def __init__(self,data,requires_grad=True):
         self.data = data
@@ -13,7 +47,7 @@ class Tensor:
         
     def __mul__(self,other): # f = a*b, self=a, other=b, f is return by Mul.apply method, which is output (f)
         """Overload the * operator."""
-        return Multiply.apply(self,other)
+        return F.Multiply.apply(self,other)
 
     def __repr__(self):
         return f"Tensor({self.data})"
