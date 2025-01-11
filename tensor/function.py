@@ -15,8 +15,10 @@ class Multiply(Function):
             chain rule, we multiply with f.grad ( which is dg/df) eg: g= f*.. ,
             graient from the last function to a and b are a.grad and b.grad
         """
-        x.grad += y.data * outputs_grad # multivariative so we need to add the grad. x.grad+=
-        y.grad += x.data * outputs_grad # multivariative so we need to add the grad. x.grad+=
+        if x.requires_grad:
+            x.grad += y.data * outputs_grad # multivariative so we need to add the grad. x.grad+=
+        if y.requires_grad:
+            y.grad += x.data * outputs_grad # multivariative so we need to add the grad. x.grad+=
 
 
 class Add(Function):
@@ -27,8 +29,10 @@ class Add(Function):
     @staticmethod
     def backward(ctx,output_grad):
         a,b =ctx.saved_tensors
-        a.grad+=1*output_grad
-        b.grad+=1*output_grad
+        if a.requires_grad:
+            a.grad+=1*output_grad
+        if b.requires_grad:
+            b.grad+=1*output_grad
 
 def exp(x):
     e = 2.718281 # eular value
@@ -45,4 +49,8 @@ class Tanh(Function):
     def backward(ctx,output_grad):
         x, = ctx.saved_tensors
         op = (exp(2*x.data)-1)/(exp(2*x.data)+1)
-        x.grad+= (1-op**2)*output_grad # dtanh/dx= 1-tahn(x)**2
+        if x.requires_grad:
+            x.grad+= (1-op**2)*output_grad # dtanh/dx= 1-tahn(x)**2
+
+class Sigmoid(Function):
+    pass

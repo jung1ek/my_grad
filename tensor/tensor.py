@@ -37,12 +37,18 @@ import function as F
 class Tensor:
     def __init__(self,data,requires_grad=True):
         self.data = data
-        self.grad = 0.0
+        self.grad = None
         self.grad_fn = None # Stores the Function that created this Tensor
         self.is_leaf = True # True if this Tensor is not the result of an operation
         self.requires_grad = requires_grad
         self._version = 0 # prevent from the value change after.
         self.ctx = None # context refers to its children, f= a*b, f.ctx is (a and b), keep track of the computation graph
+        self.set_grad()
+
+    def set_grad(self):
+        """Set the gradient to 0.0, if requires_grad"""
+        if self.requires_grad:
+            self.grad = 0.0
         
     def __mul__(self,other): # f = a*b, self=a, other=b, f is return by Mul.apply method, which is output (f)
         """Overload the * operator."""
@@ -62,12 +68,12 @@ class Tensor:
         """Compute gradients by traversing the computation graph."""
         self.grad = 1.0 # we df/df = 1.0, last node
 
-        stack = [self]
+        stack = [self] #LIFO
         while stack:
             current = stack.pop() # extract the last element or Tensor from stack, removes it too.
             output_grad = current.grad # set the output_grad from the current Tensor grad.
 
-            """Add the children to the stack,f=current: f(a,b) = a and b are children. also, only if a or b are function too not leaf"""
+            """Add the children to the stack and invoke backward,f=current: f(a,b) = a and b are children. also, only if a or b are function too, not leaf"""
             # grad_fn is only in function (f), not in leaf (a, b)
             if current.grad_fn: # leaf doesnot contains grad_fn, f = a * b , a and b are leaf
                 current.grad_fn.backward(current.ctx,output_grad)
