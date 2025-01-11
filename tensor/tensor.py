@@ -61,7 +61,7 @@ class Tensor:
         while stack:
             current = stack.pop() # extract the last element or Tensor from stack, removes it too.
             output_grad = current.grad # set the output_grad from the current Tensor grad.
-            
+            # add the children to the stack, f(a,b) = a and b are children. alos, only if a or b are function too not leaf
             # grad_fn is only in function (f), not in leaf (a, b)
             if current.grad_fn: # leaf doesnot contains grad_fn, f = a * b , a and b are leaf
                 current.grad_fn.backward(current.ctx,output_grad)
