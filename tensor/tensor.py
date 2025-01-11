@@ -49,7 +49,21 @@ class Tensor:
         """Set the gradient to 0.0, if requires_grad"""
         if self.requires_grad:
             self.grad = 0.0
-        
+    
+    @property
+    def requires_grad(self):
+        """Getter for requires_grad"""
+        return self._requires_grad
+
+    @requires_grad.setter
+    def requires_grad(self,value):
+        """Setter for requires_grad that invokes set_grad"""
+        self._requires_grad = value
+        if value and self.grad is None:
+            self.set_grad()
+        elif not value and self.grad is not None:
+            self.grad = None
+    
     def __mul__(self,other): # f = a*b, self=a, other=b, f is return by Mul.apply method, which is output (f)
         """Overload the * operator."""
         return F.Multiply.apply(self,other)
