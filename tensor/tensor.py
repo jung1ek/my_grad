@@ -23,14 +23,13 @@ class Function:
         """Perform forward computation and link to backward."""
         ctx = Context() # iniatialize the context
 
-        from tensor import Tensor # to solve circular import error. we are importing Tensor which, in first line import funcion module, that module
-        # also import tensor module which is incomplete at that run-time.
         inputs = [inp if isinstance(inp, Tensor) else inp for inp in inputs]  # validate the *inputs (which is a and b)
-        output_data = cls.forward(ctx,*inputs)
+        output_data = cls.forward(ctx,*inputs) # operation
 
-        output = Tensor(output_data)
+
+        output = Tensor(output_data) # eg: output = f, f(a,b) = a*b
         output.grad_fn = cls # Link the Function to the output Tensor
-        output.ctx = ctx  # Save the context for backward
+        output.ctx = ctx  # Save the context for backward, like children, (a,b) for f
         output.is_leaf = False  # Result of an operation, not a leaf node
         return output
 
@@ -48,20 +47,27 @@ class Tensor:
     def __mul__(self,other): # f = a*b, self=a, other=b, f is return by Mul.apply method, which is output (f)
         """Overload the * operator."""
         return F.Multiply.apply(self,other)
+    
+    def __add__(self,other):
+        return F.Add.apply(self,other)
+
+    def tanh(self):
+        return F.Tanh.apply(self)
 
     def __repr__(self):
-        return f"Tensor({self.data})"
+        return f"Tensor({self.data}, grad_fn=<{self.grad_fn.__name__}Backward>)"
     
     # we invoke this method from the last function so, eg: last funciton is f= a*b, in this case self=f
     def backward(self):
         """Compute gradients by traversing the computation graph."""
-        self.grad = 1.0 # we df/df = 1.0
+        self.grad = 1.0 # we df/df = 1.0, last node
 
         stack = [self]
         while stack:
             current = stack.pop() # extract the last element or Tensor from stack, removes it too.
             output_grad = current.grad # set the output_grad from the current Tensor grad.
-            # add the children to the stack, f(a,b) = a and b are children. alos, only if a or b are function too not leaf
+
+            """Add the children to the stack,f=current: f(a,b) = a and b are children. also, only if a or b are function too not leaf"""
             # grad_fn is only in function (f), not in leaf (a, b)
             if current.grad_fn: # leaf doesnot contains grad_fn, f = a * b , a and b are leaf
                 current.grad_fn.backward(current.ctx,output_grad)
