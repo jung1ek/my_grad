@@ -53,11 +53,11 @@ class Sigmoid(Function):
     @staticmethod
     def forward(ctx,x):
         ctx.save_for_backward(x)
-        return 1.0/(1.0+math.exp(-x.data))
+        return 1.0/(1.0+exp(-x.data))
     @staticmethod
     def backward(ctx,output_grad):
         x, = ctx.saved_tensors
-        op = 1.0/(1.0+math.exp(-x.data))
+        op = 1.0/(1.0+exp(-x.data))
         if x.requires_grad:
             x.grad += (output_grad * op*(1.0-op))
     
