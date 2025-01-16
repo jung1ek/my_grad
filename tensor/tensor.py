@@ -66,7 +66,7 @@ class Tensor:
     
     def __mul__(self,other): # f = a*b, self=a, other=b, f is return by Mul.apply method, which is output (f)
         """Overload the * operator."""
-        return F.Multiply.apply(self,other)
+        return F.Mul.apply(self,other)
     
     def __add__(self,other):
         return F.Add.apply(self,other)

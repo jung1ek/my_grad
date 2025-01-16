@@ -1,6 +1,6 @@
 from tensor import Function
 from math import exp
-class Multiply(Function):
+class Mul(Function):
     @staticmethod
     def forward(ctx,a,b): # implement mul operation and save the ctx
         """Save inputs for backward pass. and perform  multiplication. Got invoked in Funciton.apply method"""
