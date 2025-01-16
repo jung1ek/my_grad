@@ -63,34 +63,49 @@ class Tensor:
             self.set_grad()
         elif not value and self.grad is not None:
             self.grad = None
-    
+
+    def backward(self):
+        """"Building the topo list containing the all the function in reversed order"""
+        topo = [] # topological sorting: stores nodes in reversed topological order
+        visited = set() # a set to track visited nodes; ensuring we dont visit the same node multiple times.
+        def build_topo(v): #recursive function to perform DFS and build topological order.
+          if v not in visited: # Check if the current node has already been visited.
+            visited.add(v) # mark the current node as visited
+            
+            if v.is_leaf==False: # if the node is not a leaf (i.e> it ia an intermediate computation f= a*b (f) (a and b; leaf)
+                for child in v.ctx.saved_tensors: # iterate over the child node stored in context
+                  build_topo(child) # recursively build the topological order for the child nodes.
+                topo.append(v) # after the visiting all the child nodes add the current node to the 'topo' list.
+        build_topo(self)
+
+        """Compute gradients by traversing the computation graph."""
+        self.grad = 1.0 # set the gradient of the final output or final function to 1.0; which is df/df = 1.0
+        for node in reversed(topo): # iterate over the nodes in reversed topological order.
+            output_grad = node.grad # retrive the gradient of the current node from previous computation.
+            node.grad_fn.backward(node.ctx,output_grad) # call the backward method of the function (chain rule)
+
     def __mul__(self,other): # f = a*b, self=a, other=b, f is return by Mul.apply method, which is output (f)
         """Overload the * operator."""
+        other = other if isinstance(other, Tensor) else Tensor(other)
         return F.Mul.apply(self,other)
     
     def __add__(self,other):
+        other = other if isinstance(other, Tensor) else Tensor(other)
         return F.Add.apply(self,other)
+    
+    def __sub__(self, other):
+        other = other if isinstance(other, Tensor) else Tensor(other)
+        return F.Sub.apply(self, other)
 
     def tanh(self):
         return F.Tanh.apply(self)
+    
+    def sigmoid(self):
+        return F.Sigmoid.apply(self)
+    
+    def relu(self):
+        return F.Relu.apply(self)
 
     def __repr__(self):
         return f"Tensor({self.data}, grad_fn=<{self.grad_fn.__name__}Backward>)"
     
-    # we invoke this method from the last function so, eg: last funciton is f= a*b, in this case self=f
-    def backward(self):
-        """Compute gradients by traversing the computation graph."""
-        self.grad = 1.0 # we df/df = 1.0, last node
-
-        stack = [self] #LIFO
-        while stack:
-            current = stack.pop() # extract the last element or Tensor from stack, removes it too.
-            output_grad = current.grad # set the output_grad from the current Tensor grad.
-
-            """Add the children to the stack and invoke backward,f=current: f(a,b) = a and b are children. also, only if a or b are function too, not leaf"""
-            # grad_fn is only in function (f), not in leaf (a, b)
-            if current.grad_fn: # leaf doesnot contains grad_fn, f = a * b , a and b are leaf
-                current.grad_fn.backward(current.ctx,output_grad)
-            # ignore the leaf, leaf doesnot contains ctx, its None so,
-            if current.is_leaf == False:
-                stack.extend(current.ctx.saved_tensors)
