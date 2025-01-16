@@ -1,4 +1,5 @@
 from tensor import Function
+from math import exp
 class Multiply(Function):
     @staticmethod
     def forward(ctx,a,b): # implement mul operation and save the ctx
@@ -34,10 +35,6 @@ class Add(Function):
         if b.requires_grad:
             b.grad+=1*output_grad
 
-def exp(x):
-    e = 2.718281 # eular value
-    return e**x
-
 class Tanh(Function):
     @staticmethod
     def forward(ctx,x):
@@ -53,4 +50,53 @@ class Tanh(Function):
             x.grad+= (1-op**2)*output_grad # dtanh/dx= 1-tahn(x)**2
 
 class Sigmoid(Function):
-    pass
+    @staticmethod
+    def forward(ctx,x):
+        ctx.save_for_backward(x)
+        return 1.0/(1.0+math.exp(-x.data))
+    @staticmethod
+    def backward(ctx,output_grad):
+        x, = ctx.saved_tensors
+        op = 1.0/(1.0+math.exp(-x.data))
+        if x.requires_grad:
+            x.grad += (output_grad * op*(1.0-op))
+    
+
+class Relu(Function):
+    @staticmethod
+    def forward(ctx,x):
+        ctx.save_for_backward(x)
+        return max(0,x.data)
+    @staticmethod
+    def backward(ctx,output_grad):
+        x, = ctx.saved_tensors
+        if x.requires_grad:
+            x.grad += (output_grad * (1.0 if x.data>0 else 0.0))
+            
+
+class Sub(Function):
+    @staticmethod
+    def forward(ctx, a,b):
+        ctx.save_for_backward(a,b)
+        return a.data + (-b.data)
+    @staticmethod
+    def backward(ctx, output_grad):
+        x,y = ctx.saved_tensors
+        if x.requires_grad:
+            x.grad+= (output_grad*1.0)
+            
+        if y.requires_grad:
+            y.grad+= (output_grad*(-1.0))
+         
+class Pow(Function):
+    @staticmethod
+    def forward(ctx, a, x):
+        ctx.save_for_backward(a,x)
+        return a.data**x
+    @staticmethod
+    def backward(ctx, output_grad):
+        a,x = ctx.saved_tensors
+        if a.requires_grad:
+            a.grad += (output_grad * (x*a**(x-1.0)))
+       
+        ctx.saved_tensors = (a,)
