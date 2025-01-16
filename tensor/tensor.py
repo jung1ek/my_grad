@@ -107,5 +107,5 @@ class Tensor:
         return F.Relu.apply(self)
 
     def __repr__(self):
-        return f"Tensor({self.data}, grad_fn=<{self.grad_fn.__name__}Backward>)"
+        return f"Tensor({self.data}, grad_fn=<{self.grad_fn.__name__ if self.grad_fn else None}Backward>)"
     
