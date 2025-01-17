@@ -63,6 +63,7 @@ class LinearLayer:
         """
         self.linear_layer = [Neuron(num_features=in_features, act=act) for _ in range(out_features)]
         self.act = act  # Activation function for the layer
+        self.__name__ = "Linear Layer"
 
     def __call__(self, x):
         """
@@ -86,7 +87,7 @@ class LinearLayer:
         """
         String representation of the layer.
         """
-        return f"{self.__class__} Activation: {self.act}"
+        return f"{self.__name__} Activation: {self.act}"
 
 
 class MLP:
@@ -131,3 +132,47 @@ class MLP:
         String representation of the MLP.
         """
         return f"{[linear for linear in self.layers]}"
+
+class Module:
+    """
+    Base class for all neural network modules.
+    Provides a consistent interface for creating and managing neural network components.
+    """
+    
+    def __init__(self):
+        """
+        Initialize the Module.
+        This base class does not initialize anything itself but serves as a parent class for other modules.
+        """
+        pass
+
+    def __call__(self, x):
+        """
+        Enables the object to be called like a function.
+        Args:
+            x: Input data.
+        Returns:
+            Output from the `forward` method.
+        """
+        return self.forward(x)
+    
+    def forward(self, x):
+        """
+        Defines the forward pass for the module.
+        This method must be implemented by any subclass.
+        Args:
+            x: Input data.
+        Raises:
+            NotImplementedError: If not implemented in a subclass.
+        """
+        raise NotImplementedError
+    
+    def parameters(self):
+        """
+        Collects and returns all trainable parameters of the module.
+        Assumes that trainable components (e.g., layers) are stored as attributes of the module.
+        Returns:
+            List of parameters from all trainable components of the module.
+        """
+        # Iterate over all attributes in the module and collect their parameters
+        return [p for layer in self.__dict__.values() for p in layer.parameters()]
