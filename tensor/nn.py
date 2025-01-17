@@ -29,6 +29,7 @@ class Neuron:
             Output after applying weights, bias, and activation function.
         """
         # Weighted sum (dot product) + bias
+        x = x if type(x) is list else [x] 
         output = sum((wi * xi for wi, xi in zip(self.w, x)), self.b)
         
         # Apply activation function if provided
