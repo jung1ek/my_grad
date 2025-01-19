@@ -24,7 +24,7 @@ class Function:
         ctx = Context() # iniatialize the context
 
         inputs = [inp if isinstance(inp, Tensor) else inp for inp in inputs]  # validate the *inputs (which is a and b)
-        output_data = cls.forward(ctx,*inputs) # operation
+        output_data = cls.forward(ctx,*inputs) # operation; * sends arguments as tuple
 
 
         output = Tensor(output_data) # eg: output = f, f(a,b) = a*b

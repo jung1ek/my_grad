@@ -105,3 +105,64 @@ class BCELoss(Function):
             # Gradient: (output - target) / (output * (1 - output)) * output_grad
             output.grad += output_grad * ((output.data - target.data) / (output.data * (1 - output.data)))
 
+
+class MCELoss(Function):
+    """
+    Multi-Class Cross-Entropy Loss (MCE Loss).
+    Commonly used for classification tasks with multiple classes.
+    """
+
+    def __call__(self, softmax_outputs, one_hot_label):
+        """
+        Computes the multi-class cross-entropy loss.
+        Args:
+            softmax_outputs: List of softmax outputs (list of Tensor).
+            one_hot_label: One-hot encoded ground truth labels (Tensor).
+        Returns:
+            The computed MCE loss.
+        """
+        # Ensure inputs are of the correct type
+        assert type(one_hot_label) == Tensor and type(softmax_outputs) == list
+        
+        # Apply the forward pass using the MCELoss function
+        return MCELoss.apply(softmax_outputs, one_hot_label)
+
+    @staticmethod
+    def forward(ctx, softmax_outputs, one_hot_label):
+        """
+        Forward pass for the MCE loss.
+        Args:
+            ctx: Context to save variables for the backward pass.
+            softmax_outputs: List of softmax outputs (list of Tensor).
+            one_hot_label: One-hot encoded ground truth labels (Tensor).
+        Returns:
+            The computed cross-entropy loss.
+        """
+        # Save all softmax outputs and the one-hot label in the context for the backward pass
+        ctx.save_for_backward(*softmax_outputs, one_hot_label)
+        
+        # Compute the cross-entropy loss:
+        # loss = -Σ(label * log(softmax_output))
+        loss = -sum(
+            (label * math.log(softmax.data) for label, softmax in zip(one_hot_label.data, softmax_outputs))
+        )
+        
+        return loss
+
+    @staticmethod
+    def backward(ctx, output_grad):
+        """
+        Backward pass for the MCE loss.
+        Computes the gradient with respect to each softmax output.
+        Args:
+            ctx: Context containing saved variables from the forward pass.
+            output_grad: Gradient of the output from the next layer.
+        """
+        # Retrieve the one-hot encoded label from the context (last saved tensor)
+        one_hot_label = ctx.saved_tensors[-1]
+        
+        # Compute the gradient for each softmax output
+        for label, softmax in zip(one_hot_label.data, ctx.saved_tensors[:-1]):
+            if softmax.requires_grad:  # Compute gradient only for trainable softmax outputs
+                # Gradient: output_grad * (softmax_output - label)
+                softmax.grad += output_grad * (softmax.data - label)
