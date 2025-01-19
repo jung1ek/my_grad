@@ -100,3 +100,35 @@ class Pow(Function):
             a.grad += (output_grad * (x*a**(x-1.0)))
        
         ctx.saved_tensors = (a,)
+
+class Softmax(Function):
+    """Computes the sigmod of each logit at a time, current logit"""
+    @staticmethod
+    def forward(ctx, current_logit,logits):
+        """
+        param = (Tensor, [Tensor, Tensor])
+
+        """
+        all_logits = [current_logit] + logits
+        ctx.save_for_backward(*all_logits) # eg: compute softmax of first logit from logits list; ctx=(current_logit, current_logit, other_logit,other_logit,....)
+        sigma_exp = sum((exp(logit.data) for logit in logits)) # sigma(exp(xi))
+        softmax_output = exp(current_logit.data)/sigma_exp # exp(x)/sigma(exp(xi)) i:1...n, number_of_logits
+        return softmax_output
+    @staticmethod
+    def backward(ctx, output_grad):
+        """
+        Setting the gradient of every child of that softmax output, every logit is its child,
+        """
+        current_logit = ctx.saved_tensors[0]
+        sigma_exp = sum((exp(logit.data) for logit in ctx.saved_tensors[1:]))
+        current_softmax = exp(current_logit.data)/sigma_exp
+        for logit in ctx.saved_tensors[1:]: # j: 1....logits; current-softmax: i=1
+            if logit.requires_grad:
+                if logit==current_logit: # i=j, delta = 1
+                    delta = 1
+                    logit_softmax = exp(logit.data)/sigma_exp
+                    logit.grad += output_grad * (current_softmax*(delta-logit_softmax))
+                else: # i != j
+                    delta = 0
+                    logit_softmax = exp(logit.data)/sigma_exp
+                    logit.grad += output_grad * (current_softmax*(delta-logit_softmax))

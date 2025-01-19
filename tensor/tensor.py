@@ -69,7 +69,7 @@ class Tensor:
         topo = [] # topological sorting: stores nodes in reversed topological order
         visited = set() # a set to track visited nodes; ensuring we dont visit the same node multiple times.
         def build_topo(v): #recursive function to perform DFS and build topological order.
-          if v not in visited: # Check if the current node has already been visited.
+          if v not in visited: # Check if the current node has already been visited. (to make sure same function doesnot get repeated in topo list)
             visited.add(v) # mark the current node as visited
             
             if v.is_leaf==False: # if the node is not a leaf (i.e> it ia an intermediate computation f= a*b (f) (a and b; leaf)
