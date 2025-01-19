@@ -102,33 +102,65 @@ class Pow(Function):
         ctx.saved_tensors = (a,)
 
 class Softmax(Function):
-    """Computes the sigmod of each logit at a time, current logit"""
+    """
+    Implements the softmax function for a single logit in a list of logits.
+    Provides methods for both forward and backward passes to enable gradient computation.
+    """
+    
     @staticmethod
-    def forward(ctx, current_logit,logits):
+    def forward(ctx, current_logit, logits):
         """
-        param = (Tensor, [Tensor, Tensor])
-
+        Forward pass for the softmax function.
+        Args:
+            ctx: Context to save variables for the backward pass.
+            current_logit: The logit for which softmax is being computed (Tensor).
+            logits: List of all logits (Tensor objects).
+        Returns:
+            Softmax output for the current_logit.
         """
+        # Combine the current logit with the rest of the logits
         all_logits = [current_logit] + logits
-        ctx.save_for_backward(*all_logits) # eg: compute softmax of first logit from logits list; ctx=(current_logit, current_logit, other_logit,other_logit,....)
-        sigma_exp = sum((exp(logit.data) for logit in logits)) # sigma(exp(xi))
-        softmax_output = exp(current_logit.data)/sigma_exp # exp(x)/sigma(exp(xi)) i:1...n, number_of_logits
+        
+        # Save all logits in the context for use in the backward pass
+        ctx.save_for_backward(*all_logits)
+        
+        # Compute the sum of exponentials of all logits: sigma(exp(xi))
+        sigma_exp = sum((exp(logit.data) for logit in logits))
+        
+        # Compute the softmax output for the current logit: exp(x)/sigma(exp(xi))
+        softmax_output = exp(current_logit.data) / sigma_exp
+        
         return softmax_output
+
     @staticmethod
     def backward(ctx, output_grad):
         """
-        Setting the gradient of every child of that softmax output, every logit is its child,
+        Backward pass for the softmax function.
+        Computes gradients with respect to all logits.
+        Args:
+            ctx: Context containing saved tensors from the forward pass.
+            output_grad: Gradient of the output from the next layer.
         """
+        # Retrieve the current logit and all logits from the saved context
         current_logit = ctx.saved_tensors[0]
+        
+        # Compute the sum of exponentials of all logits: sigma(exp(xi))
         sigma_exp = sum((exp(logit.data) for logit in ctx.saved_tensors[1:]))
-        current_softmax = exp(current_logit.data)/sigma_exp
-        for logit in ctx.saved_tensors[1:]: # j: 1....logits; current-softmax: i=1
-            if logit.requires_grad:
-                if logit==current_logit: # i=j, delta = 1
-                    delta = 1
-                    logit_softmax = exp(logit.data)/sigma_exp
-                    logit.grad += output_grad * (current_softmax*(delta-logit_softmax))
-                else: # i != j
-                    delta = 0
-                    logit_softmax = exp(logit.data)/sigma_exp
-                    logit.grad += output_grad * (current_softmax*(delta-logit_softmax))
+        
+        # Compute the softmax value for the current logit: exp(x)/sigma(exp(xi))
+        current_softmax = exp(current_logit.data) / sigma_exp
+
+        # Iterate over all logits to compute their gradients
+        for logit in ctx.saved_tensors[1:]:
+            if logit.requires_grad:  # Only compute gradients for trainable logits
+                
+                if logit == current_logit:  # Diagonal case (i == j)
+                    delta = 1  # Kronecker delta is 1 when i == j
+                    logit_softmax = exp(logit.data) / sigma_exp  # Softmax of this logit
+                    # Gradient: output_grad * softmax_i * (delta - softmax_j)
+                    logit.grad += output_grad * (current_softmax * (delta - logit_softmax))
+                else:  # Off-diagonal case (i != j)
+                    delta = 0  # Kronecker delta is 0 when i != j
+                    logit_softmax = exp(logit.data) / sigma_exp  # Softmax of this logit
+                    # Gradient: output_grad * softmax_i * (delta - softmax_j)
+                    logit.grad += output_grad * (current_softmax * (delta - logit_softmax))
