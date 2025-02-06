@@ -66,7 +66,7 @@ class Tensor:
 
     def backward(self):
         """"Building the topo list containing the all the function in reversed order"""
-        topo = [] # topological sorting: stores nodes in reversed topological order
+        topo = [] # topological sorting: stores nodes(only function, no leaf) in reversed topological order
         visited = set() # a set to track visited nodes; ensuring we dont visit the same node multiple times.
         def build_topo(v): #recursive function to perform DFS and build topological order.
           if v not in visited: # Check if the current node has already been visited. (to make sure same function doesnot get repeated in topo list)
