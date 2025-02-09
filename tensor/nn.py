@@ -48,6 +48,9 @@ class Neuron:
         String representation of the neuron.
         """
         return f"{self.parameters()}"
+        
+    def forward(self,x):
+        return self.__call__(x=x)
 
 
 class LinearLayer:
@@ -132,6 +135,9 @@ class MLP:
         String representation of the MLP.
         """
         return f"{[linear for linear in self.layers]}"
+    
+    def forward(self,x):
+        return self.__call__(x=x)
 
 class Module:
     """

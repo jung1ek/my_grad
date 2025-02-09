@@ -62,7 +62,7 @@ class BCELoss(Function):
         """
         Compute the BCE loss for given output and target.
         Args:
-            output: Predicted output (Tensor).
+            output: Predicted output or probability (Tensor).
             target: Ground truth values (can be Tensor or convertible to Tensor).
         Returns:
             BCE loss as a Tensor.
@@ -139,7 +139,7 @@ class MCELoss(Function):
             The computed cross-entropy loss.
         """
         # Save all softmax outputs and the one-hot label in the context for the backward pass
-        ctx.save_for_backward(*softmax_outputs, one_hot_label)
+        ctx.save_for_backward(*softmax_outputs, one_hot_label) # stores all values in single tuple(softmax,..,one_hot)
         
         # Compute the cross-entropy loss:
         # loss = -Σ(label * log(softmax_output))
