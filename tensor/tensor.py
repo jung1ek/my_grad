@@ -75,7 +75,7 @@ class Tensor:
             if v.is_leaf==False: # if the node is not a leaf (i.e> it ia an intermediate computation f= a*b (f) (a and b; leaf)
                 for child in v.ctx.saved_tensors: # iterate over the child node stored in context
                   build_topo(child) # recursively build the topological order for the child nodes.
-                topo.append(v) # after the visiting all the child nodes add the current node to the 'topo' list.
+                topo.append(v) # after the visiting and adding all the child nodes add the current node to the 'topo' list.
         build_topo(self)
 
         """Compute gradients by traversing the computation graph."""
@@ -96,6 +96,14 @@ class Tensor:
     def __sub__(self, other):
         other = other if isinstance(other, Tensor) else Tensor(other)
         return F.Sub.apply(self, other)
+    
+    def __pow__(self,other):
+        other= other if isinstance(other, Tensor) else Tensor(other)
+        return F.Pow.apply(self, other)
+    
+    def __truediv__(self,other):
+        other = other if isinstance(other, Tensor) else Tensor(other)
+        return F.Div.apply(self,other)
 
     def tanh(self):
         return F.Tanh.apply(self)

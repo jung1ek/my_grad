@@ -19,7 +19,7 @@ class Neuron:
         self.b = Tensor(1.0)  # Initialize bias as Tensor with value 1.0
         self.act = act  # Activation function
 
-    def __call__(self, x: List):
+    def __call__(self, x):
         """
         Compute the forward pass for the neuron.
         Args:
@@ -28,7 +28,7 @@ class Neuron:
             Output after applying weights, bias, and activation function.
         """
         # Weighted sum (dot product) + bias
-        x = x if type(x) is list else [x] 
+        x = [x] if np.isscalar(x) else x
         output = sum((wi * xi for wi, xi in zip(self.w, x)), self.b)
         
         # Apply activation function if provided
@@ -74,7 +74,7 @@ class LinearLayer:
         Args:
             x: Input data (list of Tensor objects).
         Returns:
-            Output after passing input through each neuron.
+            Output after passing input to each neuron.
         """
         output = [neuron(x) for neuron in self.linear_layer]
         # If the layer has a single neuron, return a scalar instead of a list
@@ -182,3 +182,37 @@ class Module:
         """
         # Iterate over all attributes in the module and collect their parameters
         return [p for layer in self.__dict__.values() for p in layer.parameters()]
+
+import function as F
+class LayerNorm:
+    def __init__(self,features_dim,epsilon=1e-5,act=F.Relu):
+        self.features_dim = features_dim
+        gamma_values = np.ones(features_dim)
+        self.gamma = [Tensor(g) for g in gamma_values]
+        beta_values = np.zeros(features_dim)
+        self.beta = [Tensor(b) for b in beta_values]
+        self.act = act
+        self.epsilon=epsilon
+
+    def __call__(self,logits):
+        assert type(logits) == list
+        return self.forward(logits)
+
+    def forward(self,logits):
+
+        mu = np.mean(logits) # mean
+        var = np.sum([(x-mu)**2 for x in logits])/self.features_dim # variance
+
+        z = [(x - mu) / (var + self.epsilon)**(1/2) for x in logits] # Normalize
+        outputs = [gamma_i * z_i + beta_i for gamma_i,z_i,beta_i in zip(self.gamma,z,self.beta)] # scale and shift
+        if self.act: # applying non-linear activation
+            outputs = [self.act.apply(output) for output in outputs]
+        return outputs
+
+    def parameters(self):
+        return self.gamma+self.beta
+
+
+
+class Conv2d:
+    pass

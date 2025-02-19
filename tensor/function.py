@@ -63,6 +63,14 @@ class Sigmoid(Function):
     
 
 class Relu(Function):
+
+    # if using as the instance of Relu
+    def __call__(self,x):
+        if type(x) == list: # if list of logits
+            return [Relu.apply(x=xi) for xi in x]
+        else: # if single Tensor value
+            return Relu.apply(x)
+
     @staticmethod
     def forward(ctx,x):
         ctx.save_for_backward(x)
@@ -92,21 +100,24 @@ class Pow(Function):
     @staticmethod
     def forward(ctx, a, x):
         ctx.save_for_backward(a,x)
-        return a.data**x
+        return a.data**x.data
     @staticmethod
     def backward(ctx, output_grad):
         a,x = ctx.saved_tensors
         if a.requires_grad:
-            a.grad += (output_grad * (x*a**(x-1.0)))
-       
-        ctx.saved_tensors = (a,)
+            a.grad += (output_grad * (x.data*a.data**(x.data-1.0)))
 
 class Softmax(Function):
     """
     Implements the softmax function for a single logit in a list of logits.
     Provides methods for both forward and backward passes to enable gradient computation.
     """
-    
+    def __call__(self,logits):
+        probs = [] # probabilities of logits
+        for logit in logits: # compute probability for each logit
+            probs.append(Softmax.apply(logit,logits))
+        return probs # return probabilites
+
     @staticmethod
     def forward(ctx, current_logit, logits):
         """
@@ -121,7 +132,7 @@ class Softmax(Function):
         # Combine the current logit with the rest of the logits
         all_logits = [current_logit] + logits
         
-        # Save all logits in the context for use in the backward pass
+        # Save all logits in the context for use in the backward pass; (all_logits)
         ctx.save_for_backward(*all_logits)
         
         # Compute the sum of exponentials of all logits: sigma(exp(xi))
@@ -164,3 +175,18 @@ class Softmax(Function):
                     logit_softmax = exp(logit.data) / sigma_exp  # Softmax of this logit
                     # Gradient: output_grad * softmax_i * (delta - softmax_j)
                     logit.grad += output_grad * (current_softmax * (delta - logit_softmax))
+
+
+class Div(Function):
+
+    @staticmethod
+    def forward(ctx,x,y):
+        ctx.save_for_backward(x,y)
+        return x.data/y.data
+    @staticmethod
+    def backward(ctx,output_grad):
+        x,y = ctx.saved_tensors
+        if x.requires_grad:
+            x.grad += output_grad * (1/y.data)
+        if y.requires_grad:
+            y.grad += output_grad * (-(x.data/y.data**2))

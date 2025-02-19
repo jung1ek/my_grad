@@ -122,6 +122,7 @@ class MCELoss(Function):
             The computed MCE loss.
         """
         # Ensure inputs are of the correct type
+        one_hot_label = Tensor(one_hot_label)
         assert type(one_hot_label) == Tensor and type(softmax_outputs) == list
         
         # Apply the forward pass using the MCELoss function
