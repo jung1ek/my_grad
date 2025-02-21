@@ -215,4 +215,68 @@ class LayerNorm:
 
 
 class Conv2d:
-    pass
+
+    def __init__(self,in_channels,out_channels,kernel_size,act=Relu):
+        assert type(kernel_size)==tuple or type(kernel_size)==int
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.act = act
+        if type(kernel_size)==int:
+            self.kernel_size = (kernel_size,kernel_size)
+        else:
+            self.kernel_size = kernel_size
+
+        # parameters
+        np_to_tensor = np.vectorize(lambda x: Tensor(x))
+        random_filters = np.random.rand(self.out_channels,self.kernel_size[0],self.kernel_size[1])
+        self.filters = np_to_tensor(random_filters)
+        self.bias = [Tensor(1) for _ in range(self.out_channels)]
+
+    def __call__(self,x):
+        return self.forward(x)
+    
+    def forward(self,x):
+        """Image shape (c,h,w); numpy nd array"""
+        assert len(x.shape)==3,"""Image must be of shape (c,h,w)"""
+        output_shape = (self.out_channels,x.shape[1]-self.kernel_size[0]+1,x.shape[2]-self.kernel_size[1]+1)
+        output = np.zeros(output_shape,dtype=object)
+        for i in range(output_shape[0]): # i represents no. of output features.
+            for j in range(output_shape[1]): # height of the feature.
+                for k in range(output_shape[2]): # width of the feature.
+                    region = x[:,j:j+self.kernel_size[0],k:k+self.kernel_size[1]]
+                    conv_op = np.sum(self.filters[i]*region) + self.bias[i]
+                    if self.act:
+                        conv_op = self.act.apply(conv_op)
+                    output[i,j,k] = conv_op
+        return output
+
+    def parameters(self):
+        parameters_list = self.filters.ravel().tolist()
+        return parameters_list+self.bias
+
+class MaxPool2d:
+    
+    def __init__(self,kernel_size):
+        assert type(kernel_size)==tuple or type(kernel_size)==int
+        if type(kernel_size)==int:
+            self.kernel_size = (kernel_size,kernel_size)
+        else:
+            self.kernel_size = kernel_size
+
+    def __call__(self,x):
+        return self.forward(x)
+
+    def forward(self,x):
+        assert len(x.shape)==3,"""features must be of shape (c,h,w)"""
+        output_shape = (x.shape[0],x.shape[1]-self.kernel_size[0]+1,x.shape[2]-self.kernel_size[1]+1)
+        output = np.zeros(output_shape,dtype=object)
+        for i in range(output_shape[0]): # i represents no. of output features.
+            for j in range(output_shape[1]): # height of the feature.
+                for k in range(output_shape[2]): # width of the feature.
+                    region = x[i,j:j+self.kernel_size[0],k:k+self.kernel_size[1]]
+                    pool_op = np.max(region)
+                    output[i,j,k] = pool_op
+        return output
+
+    def parameters(self):
+        pass

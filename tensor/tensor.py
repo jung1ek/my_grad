@@ -113,6 +113,15 @@ class Tensor:
     
     def relu(self):
         return F.Relu.apply(self)
+    
+    def __ge__(self,other):
+        if self.data>=other.data:
+            return True
+        else:
+            return False
+        
+#     def __call__(self):
+#         return self.data
 
     def __repr__(self):
         return f"Tensor({self.data}, grad_fn=<{self.grad_fn.__name__ if self.grad_fn else None}Backward>)"
