@@ -276,12 +276,15 @@ class Conv2d:
             self.kernel_size = kernel_size
 
         # Initialize filters (kernels) with random values
+        # from pytorch random uniform distribution
         np_to_tensor = np.vectorize(lambda x: Tensor(x))  # Utility to convert numpy arrays to Tensors
-        random_filters = np.random.rand(self.out_channels, self.kernel_size[0], self.kernel_size[1])
+        k = 1/(self.in_channels*self.kernel_size[0]*self.kernel_size[1])
+        bound= np.sqrt(k)
+        random_filters = np.random.uniform(-bound,bound,size=(self.out_channels, self.kernel_size[0], self.kernel_size[1]))
         self.filters = np_to_tensor(random_filters)  # Convert filters to Tensors
 
         # Initialize bias terms (one per output channel)
-        self.bias = [Tensor(1) for _ in range(self.out_channels)]
+        self.bias = np_to_tensor(np.random.uniform(-bound,bound,size=(out_channels))).tolist()
 
     def __call__(self, x):
         """

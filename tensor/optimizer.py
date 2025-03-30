@@ -8,11 +8,20 @@ class SGD:
         self.parameters = parameters
 
         # Momentum
-        
+        self.velocity = [0 for _ in range(len(self.parameters))] #initial veloctiy is 0
+        self.momentum = momentum
+
+        # weight decay (not implemented)
+        self.weight_decay =weight_decay
 
     def step(self):
         for param in self.parameters:
             param.data -= self.lr*param.grad
+    
+    def step_with_momentum(self):
+        for i,param in enumerate(self.parameters):
+            self.velocity[i] = self.velocity[i]*self.momentum-self.lr*param.grad
+            param.data+=self.velocity[i]
 
     def zero_grad(self):
         for param in self.parameters:
