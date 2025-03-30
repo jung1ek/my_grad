@@ -112,12 +112,6 @@ class Softmax(Function):
     Implements the softmax function for a single logit in a list of logits.
     Provides methods for both forward and backward passes to enable gradient computation.
     """
-    def __call__(self,logits):
-        probs = [] # probabilities of logits
-        for logit in logits: # compute probability for each logit
-            probs.append(Softmax.apply(logit,logits))
-        return probs # return probabilites
-
     @staticmethod
     def forward(ctx, current_logit, logits):
         """

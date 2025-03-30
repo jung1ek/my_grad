@@ -7,6 +7,9 @@ class SGD:
         self.lr = lr
         self.parameters = parameters
 
+        # Momentum
+        
+
     def step(self):
         for param in self.parameters:
             param.data -= lr*param.grad
@@ -15,3 +18,5 @@ class SGD:
         for param in self.parameters:
             param.zero_grad()
 
+class Adam:
+    pass

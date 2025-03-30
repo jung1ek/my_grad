@@ -1,7 +1,7 @@
 from tensor import Tensor  # Custom Tensor class, assumed to handle computations (e.g., gradients for backprop)
 import numpy as np
 from typing import List
-from function import Relu, Sigmoid, Tanh  # Activation functions, assumed to be implemented in `function` module
+from function import Relu, Sigmoid, Tanh, Sigmoid,Relu  # Activation functions, assumed to be implemented in `function` module
 
 
 class Neuron:
@@ -185,98 +185,293 @@ class Module:
 
 import function as F
 class LayerNorm:
-    def __init__(self,features_dim,epsilon=1e-5,act=F.Relu):
+    def __init__(self, features_dim, epsilon=1e-5, act=F.Relu):
+        """
+        Initializes the Layer Normalization module.
+
+        Args:
+            features_dim (int): The number of features (dimensions) in the input.
+            epsilon (float, optional): A small constant added to the variance to avoid division by zero. Defaults to 1e-5.
+            act (function, optional): Activation function to apply after normalization. Defaults to F.Relu.
+        """
         self.features_dim = features_dim
+        # Initialize gamma (scale) parameters as ones
         gamma_values = np.ones(features_dim)
         self.gamma = [Tensor(g) for g in gamma_values]
+        # Initialize beta (shift) parameters as zeros
         beta_values = np.zeros(features_dim)
         self.beta = [Tensor(b) for b in beta_values]
-        self.act = act
-        self.epsilon=epsilon
+        self.act = act  # Activation function
+        self.epsilon = epsilon  # Small constant for numerical stability
 
-    def __call__(self,logits):
+    def __call__(self, logits):
+        """
+        Enables the instance to be called as a function, which calls the forward method.
+
+        Args:
+            logits (list): Input data to be normalized.
+
+        Returns:
+            list: Normalized and optionally activated output.
+        """
         assert type(logits) == list
         return self.forward(logits)
 
-    def forward(self,logits):
+    def forward(self, logits):
+        """
+        Forward pass for layer normalization.
 
-        mu = np.mean(logits) # mean
-        var = np.sum([(x-mu)**2 for x in logits])/self.features_dim # variance
+        Args:
+            logits (list): Input data to be normalized.
 
-        z = [(x - mu) / (var + self.epsilon)**(1/2) for x in logits] # Normalize
-        outputs = [gamma_i * z_i + beta_i for gamma_i,z_i,beta_i in zip(self.gamma,z,self.beta)] # scale and shift
-        if self.act: # applying non-linear activation
+        Returns:
+            list: Normalized and optionally activated output.
+        """
+        mu = np.mean(logits)  # Compute the mean of the input
+        var = np.sum([(x - mu) ** 2 for x in logits]) / self.features_dim  # Compute the variance
+
+        # Normalize the input using the mean and variance
+        z = [(x - mu) / (var + self.epsilon) ** (1 / 2) for x in logits]
+
+        # Scale and shift the normalized values using gamma and beta
+        outputs = [gamma_i * z_i + beta_i for gamma_i, z_i, beta_i in zip(self.gamma, z, self.beta)]
+
+        # Apply the activation function if provided
+        if self.act:
             outputs = [self.act.apply(output) for output in outputs]
+
         return outputs
 
     def parameters(self):
-        return self.gamma+self.beta
+        """
+        Returns the trainable parameters of the layer (gamma and beta).
+
+        Returns:
+            list: List of gamma and beta parameters.
+        """
+        return self.gamma + self.beta
 
 
 
 class Conv2d:
+    def __init__(self, in_channels, out_channels, kernel_size, act=Relu):
+        """
+        Initializes a 2D convolutional layer.
 
-    def __init__(self,in_channels,out_channels,kernel_size,act=Relu):
-        assert type(kernel_size)==tuple or type(kernel_size)==int
+        Args:
+            in_channels (int): Number of input channels.
+            out_channels (int): Number of output channels (number of filters).
+            kernel_size (int or tuple): Size of the convolutional kernel (height, width).
+            act (function, optional): Activation function to apply after convolution. Defaults to ReLU.
+        """
+        assert type(kernel_size) == tuple or type(kernel_size) == int
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.act = act
-        if type(kernel_size)==int:
-            self.kernel_size = (kernel_size,kernel_size)
+        self.act = act  # Activation function
+
+        # Handle kernel_size input (convert int to tuple if necessary)
+        if type(kernel_size) == int:
+            self.kernel_size = (kernel_size, kernel_size)
         else:
             self.kernel_size = kernel_size
 
-        # parameters
-        np_to_tensor = np.vectorize(lambda x: Tensor(x))
-        random_filters = np.random.rand(self.out_channels,self.kernel_size[0],self.kernel_size[1])
-        self.filters = np_to_tensor(random_filters)
+        # Initialize filters (kernels) with random values
+        np_to_tensor = np.vectorize(lambda x: Tensor(x))  # Utility to convert numpy arrays to Tensors
+        random_filters = np.random.rand(self.out_channels, self.kernel_size[0], self.kernel_size[1])
+        self.filters = np_to_tensor(random_filters)  # Convert filters to Tensors
+
+        # Initialize bias terms (one per output channel)
         self.bias = [Tensor(1) for _ in range(self.out_channels)]
 
-    def __call__(self,x):
+    def __call__(self, x):
+        """
+        Enables the instance to be called as a function, which calls the forward method.
+
+        Args:
+            x (numpy.ndarray): Input image of shape (c, h, w).
+
+        Returns:
+            numpy.ndarray: Output feature map after convolution and activation.
+        """
         return self.forward(x)
-    
-    def forward(self,x):
-        """Image shape (c,h,w); numpy nd array"""
-        assert len(x.shape)==3,"""Image must be of shape (c,h,w)"""
-        output_shape = (self.out_channels,x.shape[1]-self.kernel_size[0]+1,x.shape[2]-self.kernel_size[1]+1)
-        output = np.zeros(output_shape,dtype=object)
-        for i in range(output_shape[0]): # i represents no. of output features.
-            for j in range(output_shape[1]): # height of the feature.
-                for k in range(output_shape[2]): # width of the feature.
-                    region = x[:,j:j+self.kernel_size[0],k:k+self.kernel_size[1]]
-                    conv_op = np.sum(self.filters[i]*region) + self.bias[i]
+
+    def forward(self, x):
+        """
+        Performs the forward pass of the convolutional layer.
+
+        Args:
+            x (numpy.ndarray): Input image of shape (c, h, w).
+
+        Returns:
+            numpy.ndarray: Output feature map of shape (out_channels, h', w').
+        """
+        assert len(x.shape) == 3, "Input image must be of shape (c, h, w)"
+
+        # Calculate output shape
+        output_shape = (
+            self.out_channels,
+            x.shape[1] - self.kernel_size[0] + 1,  # Height of output feature map
+            x.shape[2] - self.kernel_size[1] + 1   # Width of output feature map
+        )
+        output = np.zeros(output_shape, dtype=object)  # Initialize output array
+
+        # Perform convolution
+        for i in range(output_shape[0]):  # Loop over output channels (filters)
+            for j in range(output_shape[1]):  # Loop over height of output feature map
+                for k in range(output_shape[2]):  # Loop over width of output feature map
+                    # Extract the region of interest from the input
+                    region = x[:, j:j + self.kernel_size[0], k:k + self.kernel_size[1]]
+                    # Perform convolution operation (element-wise multiplication and summation)
+                    conv_op = np.sum(self.filters[i] * region) + self.bias[i]
+                    # Apply activation function if provided
                     if self.act:
                         conv_op = self.act.apply(conv_op)
-                    output[i,j,k] = conv_op
+                    # Store the result in the output array
+                    output[i, j, k] = conv_op
+
         return output
 
     def parameters(self):
-        parameters_list = self.filters.ravel().tolist()
-        return parameters_list+self.bias
+        """
+        Returns the trainable parameters of the layer (filters and biases).
+
+        Returns:
+            list: List of filter and bias parameters.
+        """
+        parameters_list = self.filters.ravel().tolist()  # Flatten filters into a list
+        return parameters_list + self.bias  # Combine filters and biases
 
 class MaxPool2d:
-    
-    def __init__(self,kernel_size):
-        assert type(kernel_size)==tuple or type(kernel_size)==int
-        if type(kernel_size)==int:
-            self.kernel_size = (kernel_size,kernel_size)
+    def __init__(self, kernel_size):
+        """
+        Initializes a 2D max pooling layer.
+
+        Args:
+            kernel_size (int or tuple): Size of the pooling window (height, width).
+        """
+        assert type(kernel_size) == tuple or type(kernel_size) == int
+        # Handle kernel_size input (convert int to tuple if necessary)
+        if type(kernel_size) == int:
+            self.kernel_size = (kernel_size, kernel_size)
         else:
             self.kernel_size = kernel_size
 
+    def __call__(self, x):
+        """
+        Enables the instance to be called as a function, which calls the forward method.
+
+        Args:
+            x (numpy.ndarray): Input feature map of shape (c, h, w).
+
+        Returns:
+            numpy.ndarray: Output feature map after max pooling.
+        """
+        return self.forward(x)
+
+    def forward(self, x):
+        """
+        Performs the forward pass of the max pooling layer.
+
+        Args:
+            x (numpy.ndarray): Input feature map of shape (c, h, w).
+
+        Returns:
+            numpy.ndarray: Output feature map of shape (c, h', w').
+        """
+        assert len(x.shape) == 3, "Input features must be of shape (c, h, w)"
+
+        # Calculate output shape
+        output_shape = (
+            x.shape[0],  # Number of channels remains the same
+            x.shape[1] - self.kernel_size[0] + 1,  # Height of output feature map
+            x.shape[2] - self.kernel_size[1] + 1   # Width of output feature map
+        )
+        output = np.zeros(output_shape, dtype=object)  # Initialize output array
+
+        # Perform max pooling
+        for i in range(output_shape[0]):  # Loop over channels
+            for j in range(output_shape[1]):  # Loop over height of output feature map
+                for k in range(output_shape[2]):  # Loop over width of output feature map
+                    # Extract the region of interest from the input
+                    region = x[i, j:j + self.kernel_size[0], k:k + self.kernel_size[1]]
+                    # Perform max pooling operation
+                    pool_op = np.max(region)
+                    # Store the result in the output array
+                    output[i, j, k] = pool_op
+
+        return output
+
+    def parameters(self):
+        """
+        Max pooling has no trainable parameters.
+
+        Returns:
+            None
+        """
+        None
+
+class RNN:
+    
+    def __init__(self,input_size,hidden_size):
+        self.U = None
+        self.V = None
+        self.W = None
+        self.b = None
+        self.c = None
+
     def __call__(self,x):
         return self.forward(x)
 
     def forward(self,x):
-        assert len(x.shape)==3,"""features must be of shape (c,h,w)"""
-        output_shape = (x.shape[0],x.shape[1]-self.kernel_size[0]+1,x.shape[2]-self.kernel_size[1]+1)
-        output = np.zeros(output_shape,dtype=object)
-        for i in range(output_shape[0]): # i represents no. of output features.
-            for j in range(output_shape[1]): # height of the feature.
-                for k in range(output_shape[2]): # width of the feature.
-                    region = x[i,j:j+self.kernel_size[0],k:k+self.kernel_size[1]]
-                    pool_op = np.max(region)
-                    output[i,j,k] = pool_op
-        return output
+        pass
+
+
+class LSTM:
+
+    def __init__(self):
+        pass
+
+
+class GRU:
+
+    def __init__(self):
+        pass
+
+
+
+class Relu(Relu):
+    # Multi dimension implementation remains!!!
+    def __call__(self,x):
+        # using vectorzie 
+        apply_relu = np.vectorize(lambda x: Relu.apply(x)) # apply function to each elements x in array
+        return apply_relu(x) # return outputs
+    
+    def parameters(self):
+        None
+
+class Softmax(Softmax):
+
+    def __call__(self,logits):
+        probs = [] # probabilities of logits
+        for logit in logits: # compute probability for each logit
+            probs.append(Softmax.apply(logit,logits))
+        return probs # return probabilites
+    
+    def parameters():
+        None
+
+class Tanh(Tanh):
+    def __call__(self,x):
+        apply_tanh = np.vectorize(lambda x: Tanh.apply(x) )
+        return apply_tanh(x)
+    
+    def parameters(self):
+        None
+
+class Flatten:
+
+    def __call__(self,x):
+        return x.ravel().tolist()
 
     def parameters(self):
-        pass
+        None

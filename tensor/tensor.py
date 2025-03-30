@@ -72,10 +72,10 @@ class Tensor:
           if v not in visited: # Check if the current node has already been visited. (to make sure same function doesnot get repeated in topo list)
             visited.add(v) # mark the current node as visited
             
-            if v.is_leaf==False: # if the node is not a leaf (i.e> it ia an intermediate computation f= a*b (f) (a and b; leaf)
+            if not v.is_leaf: # if the node is not a leaf (i.e> it ia an intermediate computation f= a*b (f) (a and b; leaf)
                 for child in v.ctx.saved_tensors: # iterate over the child node stored in context
                   build_topo(child) # recursively build the topological order for the child nodes.
-                topo.append(v) # after the visiting and adding all the child nodes add the current node to the 'topo' list.
+                topo.append(v) # after the visiting and adding all the child nodes; then the current node is added the 'topo' list.
         build_topo(self)
 
         """Compute gradients by traversing the computation graph."""
