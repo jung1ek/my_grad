@@ -1,7 +1,7 @@
 from tensor import Tensor  # Custom Tensor class, assumed to handle computations (e.g., gradients for backprop)
 import numpy as np
 from typing import List
-from function import Relu, Sigmoid, Tanh, Sigmoid,Relu  # Activation functions, assumed to be implemented in `function` module
+from function import Relu,Sigmoid,Tanh,Relu,Softmax  # Activation functions, assumed to be implemented in `function` module
 
 
 class Neuron:
@@ -410,34 +410,6 @@ class MaxPool2d:
         """
         None
 
-class RNN:
-    
-    def __init__(self,input_size,hidden_size):
-        self.U = None
-        self.V = None
-        self.W = None
-        self.b = None
-        self.c = None
-
-    def __call__(self,x):
-        return self.forward(x)
-
-    def forward(self,x):
-        pass
-
-
-class LSTM:
-
-    def __init__(self):
-        pass
-
-
-class GRU:
-
-    def __init__(self):
-        pass
-
-
 
 class Relu(Relu):
     # Multi dimension implementation remains!!!
@@ -467,6 +439,74 @@ class Tanh(Tanh):
     
     def parameters(self):
         None
+
+class RNN:
+    
+    def __init__(self,input_size,hidden_size,act=Tanh):
+        # uniform distribution like pytorch RNN
+        k = 1/hidden_size
+        bound= np.sqrt(k)
+        np_to_Tensor = np.vectorize(lambda x: Tensor(x))
+
+        # input to hidden weights, size = (hidden_size, input_size)
+        random_wu = np.random.uniform(-bound,bound,size=(hidden_size,input_size)) 
+        self.U = np_to_Tensor(random_wu)
+
+        # hidden to output weights, size = (output_size,hidden_size)
+        self.V = None
+
+        # hidden to hidden weights, size = (hidden_size, hidden_size)
+        random_ww = np.random.uniform(-bound,bound,size=(hidden_size,hidden_size))
+        self.W = np_to_Tensor(random_ww)
+
+        # input to hidden bias, (hidden_size)
+        random_bxh = np.random.uniform(-bound,bound,size=(hidden_size))
+        self.b_xh = np_to_Tensor(random_bxh)
+
+        # hidden to hidden bias, (hidden_size)
+        random_bhh = np.random.uniform(-bound,bound,size=(hidden_size))
+        self.b_hh = np_to_Tensor(random_bhh)
+
+        self.act = act()
+        self.hidden_size = hidden_size
+
+    def __call__(self,x):
+        return self.forward(x)
+
+    def forward(self,x,h_0=None):
+        # h_0 is initial hidden state
+        # shape of x is (seq_len, features)
+        seq_len,_ = x.shape
+        if h_0 is None:
+            h_0 = np.zeros(self.hidden_size)
+        h = h_0
+
+        # RNN implementation based on unfolded graph
+        for i in range(seq_len):
+            h = self.act(
+                np.dot(self.W,h)+self.b_hh+
+                np.dot(self.U,x[i])+self.b_xh
+            )
+        return h
+    
+    def parameters(self):
+        # only python list.
+        return self.W.ravel().tolist()+self.U.ravel().tolist()+self.b_hh.tolist()+self.b_xh.tolist()
+
+
+
+class LSTM:
+
+    def __init__(self):
+        pass
+
+
+class GRU:
+
+    def __init__(self):
+        pass
+
+
 
 class Flatten:
 

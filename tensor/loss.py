@@ -134,7 +134,7 @@ class MCELoss(Function):
         Forward pass for the MCE loss.
         Args:
             ctx: Context to save variables for the backward pass.
-            softmax_outputs: List of softmax outputs (list of Tensor).
+            softmax_outputs: softmax output (list of Tensor).
             one_hot_label: One-hot encoded ground truth labels (Tensor).
         Returns:
             The computed cross-entropy loss.
@@ -143,7 +143,7 @@ class MCELoss(Function):
         ctx.save_for_backward(*softmax_outputs, one_hot_label) # stores all values in single tuple(softmax,..,one_hot)
         
         # Compute the cross-entropy loss:
-        # loss = -Σ(label * log(softmax_output))
+        # loss = -Σ(label_i * log(softmax_output_i))
         loss = -sum(
             (label * math.log(softmax.data) for label, softmax in zip(one_hot_label.data, softmax_outputs))
         )

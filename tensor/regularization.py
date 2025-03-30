@@ -1,6 +1,7 @@
 from tensor import Function, Tensor
 import numpy as np
 # penalty to model or loss function
+# for now we have to use manually; final_loss = loss+reg
 class L2Reg(Function):
 
     def __call__(self, parameters, alpha):
