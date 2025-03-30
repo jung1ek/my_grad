@@ -14,7 +14,9 @@ class Neuron:
             num_features: Number of input features (size of input vector).
             act: Activation function to be used (default: Relu).
         """
-        random_data = np.random.rand(num_features)  # Randomly initialize weights
+        k = 1/num_features
+        bound= np.sqrt(k)
+        random_data = np.random.uniform(-bound,bound,size=(num_features))  # Randomly initialize weights
         self.w = [Tensor(xi) for xi in random_data]  # Convert weights to Tensor
         self.b = Tensor(1.0)  # Initialize bias as Tensor with value 1.0
         self.act = act  # Activation function
