@@ -3,7 +3,14 @@
     2. The backward method computes the gradients of the inputs based on gradients of the output. (chain rule)
     Actual pytorch , all operation are performed by C++
 """
-from helpers import Context
+# from helpers import Context
+try:
+    # First try relative import (works when running as package)
+    from .helpers import Context
+except ImportError:
+    # Fall back to direct import (works when running file directly)
+    from helpers import Context
+
 class Function:
     @staticmethod
     def forward(ctx,*tensors):
@@ -32,8 +39,14 @@ class Function:
         output.ctx = ctx  # Save the context for backward, like children, (a,b) for f
         output.is_leaf = False  # Result of an operation, not a leaf node
         return output
+    
+try:
+    # First try relative import (works when running as package)
+    from . import function as F
+except ImportError:
+    # Fall back to direct import (works when running file directly)
+    import function as F
 
-import function as F
 class Tensor:
     def __init__(self,data,requires_grad=True):
         self.data = data

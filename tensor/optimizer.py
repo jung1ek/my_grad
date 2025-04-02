@@ -19,6 +19,8 @@ class SGD:
             param.data -= self.lr*param.grad
     
     def step_with_momentum(self):
+        # v = v*momentum*-lr*parameter_grad
+        # parameter = parameter + v
         for i,param in enumerate(self.parameters):
             self.velocity[i] = self.velocity[i]*self.momentum-self.lr*param.grad
             param.data+=self.velocity[i]

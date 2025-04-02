@@ -1,4 +1,9 @@
-from tensor import Function,Tensor
+try:
+    # First try relative import (works when running as package)
+    from .tensor import Function, Tensor
+except ImportError:
+    # Fall back to direct import (works when running file directly)
+    from tensor import Function,Tensor
 import math
 class MSELoss(Function):
     """

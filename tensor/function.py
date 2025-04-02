@@ -1,4 +1,9 @@
-from tensor import Function
+try:
+    # First try relative import (works when running as package)
+    from .tensor import Function
+except ImportError:
+    # Fall back to direct import (works when running file directly)
+    from tensor import Function
 from math import exp
 class Mul(Function):
     @staticmethod
