@@ -189,3 +189,17 @@ class Div(Function):
             x.grad += output_grad * (1/y.data)
         if y.requires_grad:
             y.grad += output_grad * (-(x.data/y.data**2))
+
+
+class Exp(Function):
+
+    @staticmethod
+    def forward(ctx,a):
+        ctx.save_for_backward(a)
+        return exp(a.data)
+
+    @staticmethod
+    def backward(ctx,output_grad):
+        a = ctx.saved_tensors
+        if a.requres_grad:
+            a.grad += output_grad * exp(a.data)

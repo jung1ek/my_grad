@@ -127,6 +127,12 @@ class Tensor:
     def relu(self):
         return F.Relu.apply(self)
     
+    def exp(self):
+        return F.Exp.apply(self)
+    
+    def sqrt(self):
+        return self.__pow__(1/2)
+    
     def __ge__(self,other):
         if self.data>=other.data:
             return True
