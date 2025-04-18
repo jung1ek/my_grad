@@ -233,8 +233,14 @@ class LayerNorm:
         Returns:
             list: Normalized and optionally activated output.
         """
-        assert type(logits) == list
-        return self.forward(logits)
+        assert type(logits) == list or type(logits)==np.ndarray
+
+        # apply layer norm over embed dimension.
+        if type(logits)==np.ndarray and len(logits.shape)==2:
+            outputs = [self.forward(x) for x in logits]
+            return outputs
+        else:
+            return self.forward(logits)
 
     def forward(self, logits):
         """
