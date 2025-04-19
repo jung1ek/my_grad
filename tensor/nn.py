@@ -576,7 +576,8 @@ class MultiHeadAttention:
         seq_len,embed_dim = x.shape
         self.heads=[]
         # linear transformation; linear projectile
-        x= np_to_tensor()(x)
+        if x.dtype != 'O':
+            x= np_to_tensor()(x)# when calling middle of the operation; create Tensor of data Tensor; Error;
         q_proj = np.dot(x,self.QW)
         k_proj = np.dot(x,self.KW)
         v_proj = np.dot(x,self.VW)
@@ -621,8 +622,28 @@ class MultiHeadAttention:
 
 class TransformerEncoderLayer:
 
-    def __init__(self):
-        pass
+    def __init__(self,seq_len,embed_dim,mlp_dim,vocab_size,num_heads):
+        self.ie = Embedding(vocab_size,embed_dim)
+        self.pe = PositionalEcnoding(seq_len,embed_dim)
+        self.mha = MultiHeadAttention(embed_dim,num_heads)
+        self.ln = LayerNorm(embed_dim)
+        self.mlp_l1 = LinearLayer(embed_dim,mlp_dim)
+        self.mlp_l2 = LinearLayer(mlp_dim,embed_dim,act=None)
+
+    def __call__(self, x):
+        return self.forward(x)
+
+    def forward(self,x):
+        # x.shape = (seq,embedding)
+        x = self.ie(x)
+        x = x+self.pe()
+        x = self.ln(x + self.mha(x))
+        # each word at a time;
+        x = self.ln(x + np.array([self.mlp_l2(xi) for xi in [self.mlp_l1(xi) for xi in x]]))
+        return x
+
+        
+
 
 class PositionalEcnoding:
 
@@ -636,19 +657,19 @@ class PositionalEcnoding:
         self.div_term = np.exp(np.arange(0,embed_dim,2,dtype=float)*(-math.log(10000.0)/embed_dim))
         # broadcasting for each position, even embed position.
         self.PE[:,0::2] = np.sin(self.position*self.div_term) # for even dim, shape(seq_len,(only even idx) embed_dim/2)
-        self.PE[:,1::2] = np.cos(self.position*self.div_term) # for odd dim, shape(seq_len, (odd idx only) embed_dim/2)
+        self.PE[:,1::2] = np.cos(self.position*self.div_term) # for odd dim, shape(seq_len, (odd idx only) embed_dim+1/2)
         # if shape (3,4)
-        # first pe = (3,2) # both even embed; 0,2 for every word in seq
-        # second pe = (3,2) # both odd embed dim; 1,3 for every word in seq
+        # first pe = (3,2) # both even embed; 0,2 word in seq
+        # second pe = (3,2) # both odd embed dim; 1,3 word in seq
 
-    def __call__(self, x):
-        return self.forward(x)
+    def __call__(self):
+        return self.forward()
 
-    def forward(self,x):
+    def forward(self):
         # shape X (seq_len,embed_dim)
-        pos_encoded = x+self.PE
-        if type(pos_encoded)==np.ndarray:
-            return pos_encoded.tolist()
+        pos_encoded = self.PE
+        # if type(pos_encoded)==np.ndarray:
+        #     return pos_encoded.tolist()
         return pos_encoded
 
     def parameters(self):
@@ -660,17 +681,18 @@ class Embedding:
     def __init__(self,num_embeddings,embedding_size):
         # lookup table
         # num_embedding : dictionary size, embedding_size : size of each embedding vector
-        np_weight = np.random.randn((num_embeddings,embedding_size))
-        self.weight = np_to_tensor(np_weight)
+        np_weight = np.random.randn(num_embeddings,embedding_size)
+        self.weight = np_to_tensor()(np_weight)
     
     def __call__(self,x):
         # apply to each element in input list.
         assert type(x)==list or type(x)==np.ndarray
         output_embed = [self.forward(xi) for xi in x]
-        return output_embed
+        return np.array(output_embed)
 
     def forward(self,x):
         # x: indices
+        # [i1,i2,i3]
         return self.weight[x]
     
     def parameters(self):
