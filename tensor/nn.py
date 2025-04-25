@@ -544,7 +544,7 @@ def np_to_tensor():
 
 class MultiHeadAttention:
 
-    def __init__(self,embed_dim,num_heads=8,gain=1.0):
+    def __init__(self,embed_dim,num_heads=8,gain=1.0,mask=True):
         # linear projectile weights or can use linear layer
         # qw = np.random.randn(embed_dim,embed_dim)
         # kw = np.random.randn(embed_dim,embed_dim)
@@ -567,6 +567,7 @@ class MultiHeadAttention:
         self.d_model = embed_dim
         # d_k = d_model / h = 3 (each head processes some portion of embed value)
         self.dk = embed_dim//self.num_heads
+        self.mask = mask
 
     def __call__(self,x):
         return self.forward(x)
@@ -591,6 +592,16 @@ class MultiHeadAttention:
         # for each head (boradcasting) avoid loops
         scores = np.matmul(Q_heads,K_heads.transpose(0,2,1),dtype=Tensor) # Q*Kt ;  matrix multiplication; shape(head, seq_len,seq_len)
         scores/= np.sqrt(self.dk) # scaling by sq-root(dk)
+
+        # look-ahead mask, for scores.
+        if self.mask:
+            mask = np.triu(np.ones((self.num_heads,seq_len,seq_len)),k=1).astype(bool) # create the lookahead mask
+            scores = np.where(mask,-np.inf,scores) # replace true with -inf value
+
+            # solve the inf , float got no exp function error
+            # other are Tensor so, try to call exp method on loop, and got error on inf value;
+            inf_to_tensor = np.vectorize(lambda x: x if type(x)==Tensor else Tensor(x))
+            scores = inf_to_tensor(scores)
 
         # in higher model_dimension (embedding_dim), and heads; the product is high and exp(high) becomes too high, overflow.
         #solution , initialize the weights based on pytorch implementation uniform(-bound,bound)
@@ -619,30 +630,6 @@ class MultiHeadAttention:
     
     def parameters(self):
         return self.QW.ravel().tolist() + self.KW.ravel().tolist()+ self.VW.ravel().tolist()+self.OW.ravel().tolist()
-
-class TransformerEncoderLayer:
-
-    def __init__(self,seq_len,embed_dim,mlp_dim,vocab_size,num_heads):
-        self.ie = Embedding(vocab_size,embed_dim)
-        self.pe = PositionalEcnoding(seq_len,embed_dim)
-        self.mha = MultiHeadAttention(embed_dim,num_heads)
-        self.ln = LayerNorm(embed_dim)
-        self.mlp_l1 = LinearLayer(embed_dim,mlp_dim)
-        self.mlp_l2 = LinearLayer(mlp_dim,embed_dim,act=None)
-
-    def __call__(self, x):
-        return self.forward(x)
-
-    def forward(self,x):
-        # x.shape = (seq,embedding)
-        x = self.ie(x)
-        x = x+self.pe()
-        x = self.ln(x + self.mha(x))
-        # each word at a time;
-        x = self.ln(x + np.array([self.mlp_l2(xi) for xi in [self.mlp_l1(xi) for xi in x]]))
-        return x
-
-        
 
 
 class PositionalEcnoding:
@@ -698,6 +685,35 @@ class Embedding:
     def parameters(self):
         return self.weight.ravel().tolist()
         
+class TransformerEncoderLayer:
+
+    def __init__(self,seq_len,embed_dim,mlp_dim,vocab_size,num_heads):
+        self.ie = Embedding(vocab_size,embed_dim)
+        self.pe = PositionalEcnoding(seq_len,embed_dim)
+        self.mha = MultiHeadAttention(embed_dim,num_heads)
+        self.ln = LayerNorm(embed_dim)
+        self.mlp_l1 = LinearLayer(embed_dim,mlp_dim)
+        self.mlp_l2 = LinearLayer(mlp_dim,embed_dim,act=None)
+
+    def __call__(self, x):
+        return self.forward(x)
+
+    def forward(self,x):
+        # x.shape = (seq,embedding)
+        x = self.ie(x)
+        x = x+self.pe()
+        x = self.ln(x + self.mha(x))
+        # each word at a time;
+        x = self.ln(x + np.array([self.mlp_l2(xi) for xi in [self.mlp_l1(xi) for xi in x]]))
+        return x
+    
+    def parameters(self):
+        return self.ie.parameters()+self.mha.parameters()+self.ln.parameters()+self.mlp_l1.parameters()+self.mlp_l2.parameters()
+
+class TransformerDecoderLayer:
+
+    def __init__(self):
+        pass
 
 class Flatten:
 
@@ -706,3 +722,4 @@ class Flatten:
 
     def parameters(self):
         None
+
