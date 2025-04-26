@@ -690,9 +690,8 @@ class Embedding:
         
 class TransformerEncoderLayer:
 
-    def __init__(self,seq_len,embed_dim,mlp_dim,vocab_size,num_heads):
+    def __init__(self,embed_dim,mlp_dim,vocab_size,num_heads):
         self.ie = Embedding(vocab_size,embed_dim)
-        self.pe = PositionalEcnoding(seq_len,embed_dim)
         self.mha = MultiHeadAttention(embed_dim,num_heads)
         self.ln = LayerNorm(embed_dim)
         self.mlp_l1 = LinearLayer(embed_dim,mlp_dim)
@@ -702,7 +701,10 @@ class TransformerEncoderLayer:
         return self.forward(x)
 
     def forward(self,x):
-        # x.shape = (seq,embedding)
+        assert type(x)==np.ndarray,"input must be numpy array"
+        # x.shape = (seq,) tokens
+        seq_len,= x.shape
+        self.pe = PositionalEcnoding(seq_len,embed_dim)
         x = self.ie(x)
         x = x+self.pe()
         x = self.ln(x + self.mha(x,x,x))
@@ -715,20 +717,23 @@ class TransformerEncoderLayer:
 
 class TransformerDecoderLayer:
 
-    def __init__(self,seq_len,embed_dim,mlp_dim,vocab_size,num_heads):
+    def __init__(self,embed_dim,mlp_dim,vocab_size,num_heads):
         self.ie = Embedding(vocab_size,embed_dim)
-        self.pe = PositionalEcnoding(seq_len,embed_dim)
         self.mha = MultiHeadAttention(embed_dim,num_heads)
         self.mask_mha = MultiHeadAttention(embed_dim,num_heads,mask=True)
         self.ln = LayerNorm(embed_dim)
         self.mlp_l1 = LinearLayer(embed_dim,mlp_dim)
         self.mlp_l2 = LinearLayer(mlp_dim,embed_dim,act=None)
+        self.embed_dim = embed_dim
 
     def __call__(self,*args):
         return self.forward(*args)
 
-    def forward(self,Q,K,x):
-        # x.shape = (seq,embedding)
+    def forward(self,Q,K,x): # Q and K is encoder output. x is input tokens.
+        assert type(Q)==np.ndarray and type(K)==np.ndarray and type(x)==np.ndarray,"input must be numpy array"
+        # x.shape = (seq,) tokens
+        seq_len,= x.shape
+        self.pe = PositionalEcnoding(seq_len,self.embed_dim)
         x = self.ie(x)
         x = x+self.pe()
         x = self.ln(x + self.mask_mha(x,x,x))
