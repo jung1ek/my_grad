@@ -235,7 +235,7 @@ class LayerNorm:
         """
         assert type(logits) == list or type(logits)==np.ndarray
 
-        # apply layer norm over embed dimension.
+        # apply layer norm over embed dimension; on embedding of each word.
         if type(logits)==np.ndarray and len(logits.shape)==2:
             outputs = [self.forward(x) for x in logits]
             return outputs
@@ -569,19 +569,22 @@ class MultiHeadAttention:
         self.dk = embed_dim//self.num_heads
         self.mask = mask
 
-    def __call__(self,x):
-        return self.forward(x)
+    def __call__(self,q,k,v):
+        return self.forward(q,k,v)
 
-    def forward(self,x):
-        assert type(x)==np.ndarray,"input must be numpy array"
-        seq_len,embed_dim = x.shape
-        self.heads=[]
+    def forward(self,q,k,v):
+        assert type(q)==np.ndarray and type(k)==np.ndarray and type(v)==np.ndarray,"input must be numpy array"
+        seq_len,embed_dim = q.shape
         # linear transformation; linear projectile
-        if x.dtype != 'O':
-            x= np_to_tensor()(x)# when calling middle of the operation; create Tensor of data Tensor; Error;
-        q_proj = np.dot(x,self.QW)
-        k_proj = np.dot(x,self.KW)
-        v_proj = np.dot(x,self.VW)
+        if q.dtype != 'O':
+            q= np_to_tensor()(q)# when calling middle of the operation; create Tensor of data Tensor; Error;
+        if k.dtype != 'O':
+            k= np_to_tensor()(k)
+        if v.dtype != 'O':
+            v= np_to_tensor()(v)
+        q_proj = np.dot(q,self.QW)
+        k_proj = np.dot(k,self.KW)
+        v_proj = np.dot(v,self.VW)
 
         # split into multiple heads
         # Reshape to (seq_len, h, d_k), then transpose to (h, seq_len, d_k)
@@ -702,8 +705,8 @@ class TransformerEncoderLayer:
         # x.shape = (seq,embedding)
         x = self.ie(x)
         x = x+self.pe()
-        x = self.ln(x + self.mha(x))
-        # each word at a time;
+        x = self.ln(x + self.mha(x,x,x))
+        # each word at a time; feedforward network
         x = self.ln(x + np.array([self.mlp_l2(xi) for xi in [self.mlp_l1(xi) for xi in x]]))
         return x
     
@@ -712,8 +715,31 @@ class TransformerEncoderLayer:
 
 class TransformerDecoderLayer:
 
-    def __init__(self):
-        pass
+    def __init__(self,seq_len,embed_dim,mlp_dim,vocab_size,num_heads):
+        self.ie = Embedding(vocab_size,embed_dim)
+        self.pe = PositionalEcnoding(seq_len,embed_dim)
+        self.mha = MultiHeadAttention(embed_dim,num_heads)
+        self.mask_mha = MultiHeadAttention(embed_dim,num_heads,mask=True)
+        self.ln = LayerNorm(embed_dim)
+        self.mlp_l1 = LinearLayer(embed_dim,mlp_dim)
+        self.mlp_l2 = LinearLayer(mlp_dim,embed_dim,act=None)
+
+    def __call__(self,*args):
+        return self.forward(*args)
+
+    def forward(self,Q,K,x):
+        # x.shape = (seq,embedding)
+        x = self.ie(x)
+        x = x+self.pe()
+        x = self.ln(x + self.mask_mha(x,x,x))
+        x = np.array(x) # layernorm return list so,
+        x = self.ln(x + self.mha(Q,K,x))
+        # each word at a time;
+        x = self.ln(x + np.array([self.mlp_l2(xi) for xi in [self.mlp_l1(xi) for xi in x]]))
+        return x
+    
+    def parameters(self):
+        return self.ie.parameters()+self.mha.parameters()+self.ln.parameters()+self.mlp_l1.parameters()+self.mlp_l2.parameters()+self.mask_mha.parameters()
 
 class Flatten:
 
