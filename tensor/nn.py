@@ -657,16 +657,88 @@ class LSTM:
 
 class GRU:
 
-    def __init__(self):
-        pass
+    def __init__(self,input_size,hidden_size):
         # update gate
         # reset gate
+        k = 1/hidden_size
+        bound = np.sqrt(k)
+        random_wu = np.random.uniform(-bound,bound,(hidden_size,hidden_size))
+        random_uu = np.random.uniform(-bound,bound,(hidden_size,input_size))
+        random_bu = np.random.uniform(-bound,bound,size=(hidden_size))
 
-    def forward(self):
-        pass
+        random_wr = np.random.uniform(-bound,bound,(hidden_size,hidden_size))
+        random_ur = np.random.uniform(-bound,bound,(hidden_size,input_size))
+        random_br = np.random.uniform(-bound,bound,size=(hidden_size))
+
+        random_w = np.random.uniform(-bound,bound,(hidden_size,hidden_size))
+        random_u = np.random.uniform(-bound,bound,(hidden_size,input_size))
+        random_b = np.random.uniform(-bound,bound,size=(hidden_size))
+
+        # weights for reset gate.
+        self.Ur = np_to_tensor()(random_ur)
+        self.Wr = np_to_tensor()(random_wr)
+        self.br = np_to_tensor()(random_br)
+
+        # weights for update gate.
+        self.Uu = np_to_tensor()(random_uu)
+        self.Wu = np_to_tensor()(random_wu)
+        self.bu = np_to_tensor()(random_bu)
+        
+        # weights for state gate,
+        self.U = np_to_tensor()(random_u)
+        self.W = np_to_tensor()(random_w)
+        self.b = np_to_tensor()(random_b)
+
+        self.hidden_size = hidden_size
+        self.sigmoid = Sigmoid()
+        self.tanh = Sigmoid()
+
+
+    def forward(self,x,h_o=None):
+        seq_len,in_features = x.shape
+        if h_o is None:
+            h_o = np.zeros(self.hidden_size)
+        h = h_o  # Initialize hidden state (short-term memory)
+        output = []
+
+        for i in range(seq_len):
+            # Reset gate - controls how much of the previous hidden state to forget for candidate calculation
+            r = self.sigmoid(np.dot(self.Wr, h) + np.dot(self.Ur, x[i]) + self.br)
+
+            # Update gate - controls how much of the new state to keep vs how much of the previous hidden state to retain
+            u = self.sigmoid(np.dot(self.Wu, h) + np.dot(self.Uu, x[i]) + self.bu)
+
+            # Candidate state (proposed new hidden state)
+            # Reset gate 'r' is applied to 'h' to forget some past information before combining with input
+            new_state = self.tanh(np.dot(self.W, h) * r + np.dot(self.U, x[i]) + self.b)
+
+            # Final hidden state: blend between the old hidden state and the candidate
+            # If u ≈ 1 → keep mostly old hidden state; if u ≈ 0 → replace with new candidate
+            h = (- u+1) * new_state + u * h
+
+            # Store the current hidden state
+            output.append(h)
+
+        # Return the sequence of hidden states, and final hidden state
+        return np.array(output), h
 
     def parameters(self):
-        pass
+        return (
+            self.Ur.ravel().tolist() +
+            self.Wr.ravel().tolist() +
+            self.br.ravel().tolist() +
+
+            # Weights for update gate
+            self.Uu.ravel().tolist() +
+            self.Wu.ravel().tolist() +
+            self.bu.ravel().tolist() +
+
+            # Weights for state gate
+            self.U.ravel().tolist() +
+            self.W.ravel().tolist() +
+            self.b.ravel().tolist()
+        )
+
 
 class MultiHeadAttention:
 
