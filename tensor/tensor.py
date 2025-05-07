@@ -30,7 +30,7 @@ class Function:
         """Perform forward computation and link to backward."""
         ctx = Context() # iniatialize the context
 
-        inputs = [inp if isinstance(inp, Tensor) else inp for inp in inputs]  # validate the *inputs (which is a and b)
+        inputs = [inp if isinstance(inp, Tensor) else Tensor(inp) for inp in inputs]  # validate the *inputs (which is a and b)
         output_data = cls.forward(ctx,*inputs) # operation; * sends arguments as tuple
 
 
@@ -84,10 +84,10 @@ class Tensor:
         def build_topo(v): #recursive function to perform DFS and build topological order.
           if v not in visited: # Check if the current node has already been visited. (to make sure same function doesnot get repeated in topo list)
             visited.add(v) # mark the current node as visited
-            
+
             if not v.is_leaf: # if the node is not a leaf (i.e> it ia an intermediate computation f= a*b (f) (a and b; leaf)
                 for child in v.ctx.saved_tensors: # iterate over the child node stored in context
-                  build_topo(child) # recursively build the topological order for the child nodes.
+                  build_topo(child) # recursively build the topological order for the child nodes. DFS
                 topo.append(v) # after the visiting and adding all the child nodes; then the current node is added the 'topo' list.
         build_topo(self)
 
@@ -117,6 +117,9 @@ class Tensor:
     def __truediv__(self,other):
         other = other if isinstance(other, Tensor) else Tensor(other)
         return F.Div.apply(self,other)
+    
+    def __neg__(self):
+        return F.Neg.apply(self)
 
     def tanh(self):
         return F.Tanh.apply(self)

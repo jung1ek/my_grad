@@ -200,6 +200,20 @@ class Exp(Function):
 
     @staticmethod
     def backward(ctx,output_grad):
-        a = ctx.saved_tensors
-        if a.requres_grad:
+        a, = ctx.saved_tensors
+        if a.requires_grad:
             a.grad += output_grad * exp(a.data)
+
+
+class Neg(Function):
+
+    @staticmethod
+    def forward(ctx,a):
+        ctx.save_for_backward(a)
+        return -a.data
+
+    @staticmethod
+    def backward(ctx,output_grad):
+        a, = ctx.saved_tensors
+        if a.requires_grad:
+            a.grad += output_grad *(-1)

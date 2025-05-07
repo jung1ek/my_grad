@@ -203,6 +203,11 @@ try:
 except ImportError:
     # Fall back to direct import (works when running file directly)
     import function as F
+
+def np_to_tensor():
+    # elements of numpy array to Tensor object
+    return np.vectorize(lambda x: Tensor(x))
+
 class LayerNorm:
     def __init__(self, features_dim, epsilon=1e-5, act=F.Relu):
         """
@@ -462,8 +467,17 @@ class Softmax(Softmax):
 
 class Tanh(Tanh):
     def __call__(self,x):
-        apply_tanh = np.vectorize(lambda x: Tanh.apply(x) )
+        apply_tanh = np.vectorize(lambda x: Tanh.apply(x))
         return apply_tanh(x)
+    
+    def parameters(self):
+        None
+
+class Sigmoid(Sigmoid):
+
+    def __call__(self,x):
+        apply_sig = np.vectorize(lambda x: Sigmoid.apply(x))
+        return apply_sig(x)
     
     def parameters(self):
         None
@@ -528,19 +542,131 @@ class RNN:
 
 class LSTM:
 
-    def __init__(self):
-        pass
+    def __init__(self,input_size,hidden_size,act=None):
+        """input_size : The number of expected features in the input x
+          hidden_size : The number of features in the hidden state h 
+        """
+        # forgot gate
+        # input gate
+        # output gate
+        k = 1/hidden_size
+        bound = np.sqrt(k)
+
+        # where b, U and W respectively denote the biases, input weights and recurrent weights into the LSTM cell.
+        random_wf = np.random.uniform(-bound,bound,(hidden_size,hidden_size))
+        random_uf = np.random.uniform(-bound,bound,(hidden_size,input_size))
+        random_bf = np.random.uniform(-bound,bound,size=(hidden_size))
+
+        random_wg = np.random.uniform(-bound,bound,(hidden_size,hidden_size))
+        random_ug = np.random.uniform(-bound,bound,(hidden_size,input_size))
+        random_bg = np.random.uniform(-bound,bound,size=(hidden_size))
+
+        random_wo = np.random.uniform(-bound,bound,(hidden_size,hidden_size))
+        random_uo = np.random.uniform(-bound,bound,(hidden_size,input_size))
+        random_bo = np.random.uniform(-bound,bound,size=(hidden_size))
+
+        random_w = np.random.uniform(-bound,bound,(hidden_size,hidden_size))
+        random_u = np.random.uniform(-bound,bound,(hidden_size,input_size))
+        random_b = np.random.uniform(-bound,bound,size=(hidden_size))
+
+        # weights for forgot gate. long term memory forgot old information.
+        self.Uf = np_to_tensor()(random_uf)
+        self.Wf = np_to_tensor()(random_wf)
+        self.bf = np_to_tensor()(random_bf)
+
+        # weights for input gate.
+        self.Ug = np_to_tensor()(random_ug)
+        self.Wg = np_to_tensor()(random_wg)
+        self.bg = np_to_tensor()(random_bg)
+        
+        # weights output gate.
+        self.Uo = np_to_tensor()(random_uo)
+        self.Wo = np_to_tensor()(random_wo)
+        self.bo = np_to_tensor()(random_bo)
+
+        # weights for state gate, long term memory retain new info.
+        self.U = np_to_tensor()(random_u)
+        self.W = np_to_tensor()(random_w)
+        self.b = np_to_tensor()(random_b)
+
+        self.hidden_size = hidden_size
+        self.sigmoid = Sigmoid()
+        self.tanh = Tanh()
+
+    def forward(self,x,s_o=None,h_o=None):
+        seq_len, in_features = x.shape
+        if s_o is None:
+            s_o = np.zeros(self.hidden_size)
+
+        if h_o is None:
+            h_o = np.zeros(self.hidden_size)
+        
+        h = h_o  # Initialize short-term memory (hidden state)
+        s = s_o  # Initialize long-term memory (cell state)
+        output = []
+
+        for i in range(seq_len):
+            # Forget gate - decides how much of previous long-term memory to forget
+            f = self.sigmoid(np.dot(self.Wf, h) + np.dot(self.Uf, x[i]) + self.bf)
+            
+            # Input gate - decides how much new information to write to long-term memory
+            g = self.sigmoid(np.dot(self.Wg, h) + np.dot(self.Ug, x[i]) + self.bg)
+
+            # Candidate memory content - new information to be potentially added to long-term memory
+            candidate = self.sigmoid(np.dot(self.W, h) + np.dot(self.U, x[i]) + self.b)
+
+            # Update long-term memory (cell state)
+            # Forget old memory with 'f * s', and add new memory with 'g * candidate'
+            s = f * s + g * candidate
+
+            # Output gate - decides how much of the cell state should influence the short-term memory
+            q = self.sigmoid(np.dot(self.Wo, h) + np.dot(self.Uo, x[i]) + self.bo)
+
+            # Update short-term memory (hidden state)
+            h = self.tanh(s) * q
+
+            # Collect output for each time step
+            output.append(h)
+
+        # Return the sequence of hidden states, final hidden state, and final cell state
+        return np.array(output), h, s
+
+
+    def parameters(self):
+        return (
+            self.Uf.ravel().tolist() +
+            self.Wf.ravel().tolist() +
+            self.bf.ravel().tolist() +
+
+            # Weights for input gate
+            self.Ug.ravel().tolist() +
+            self.Wg.ravel().tolist() +
+            self.bg.ravel().tolist() +
+
+            # Weights for output gate
+            self.Uo.ravel().tolist() +
+            self.Wo.ravel().tolist() +
+            self.bo.ravel().tolist() +
+
+            # Weights for state gate (long-term memory update)
+            self.U.ravel().tolist() +
+            self.W.ravel().tolist() +
+            self.b.ravel().tolist()
+        )
 
 
 class GRU:
 
     def __init__(self):
         pass
+        # update gate
+        # reset gate
 
+    def forward(self):
+        pass
 
-def np_to_tensor():
-    # elements of numpy array to Tensor object
-    return np.vectorize(lambda x: Tensor(x))
+    def parameters(self):
+        pass
 
 class MultiHeadAttention:
 
@@ -689,65 +815,127 @@ class Embedding:
         return self.weight.ravel().tolist()
         
 class TransformerEncoderLayer:
-
-    def __init__(self,embed_dim,mlp_dim,vocab_size,num_heads):
-        self.ie = Embedding(vocab_size,embed_dim)
-        self.mha = MultiHeadAttention(embed_dim,num_heads)
+    def __init__(self, embed_dim, mlp_dim, vocab_size, num_heads):
+        # Token embedding layer
+        self.ie = Embedding(vocab_size, embed_dim)
+        
+        # Multi-head self-attention
+        self.mha = MultiHeadAttention(embed_dim, num_heads)
+        
+        # Layer normalization
         self.ln = LayerNorm(embed_dim)
-        self.mlp_l1 = LinearLayer(embed_dim,mlp_dim)
-        self.mlp_l2 = LinearLayer(mlp_dim,embed_dim,act=None)
+        
+        # Feedforward layers
+        self.mlp_l1 = LinearLayer(embed_dim, mlp_dim)
+        self.mlp_l2 = LinearLayer(mlp_dim, embed_dim, act=None)  # No activation in second layer
+        
+        # Store embedding dimension
+        self.embed_dim = embed_dim
 
     def __call__(self, x):
         return self.forward(x)
 
-    def forward(self,x):
-        assert type(x)==np.ndarray,"input must be numpy array"
-        # x.shape = (seq,) tokens
-        seq_len,= x.shape
-        self.pe = PositionalEcnoding(seq_len,embed_dim)
+    def forward(self, x):
+        assert type(x) == np.ndarray, "input must be numpy array"
+        seq_len, = x.shape
+
+        if self.seq_len is None or self.seq_len != seq_len:
+            self.seq_len = seq_len
+        
+        # Positional encoding initialized per sequence
+        if self.pe is None:
+            self.pe = PositionalEcnoding(self.seq_len, self.embed_dim)
+        
+        # Embed tokens and add positional encoding
         x = self.ie(x)
-        x = x+self.pe()
-        x = self.ln(x + self.mha(x,x,x))
-        # each word at a time; feedforward network
+        x = x + self.pe()
+        
+        # Apply self-attention and residual connection
+        x = self.ln(x + self.mha(x, x, x))
+        
+        # Feedforward block with residual + LayerNorm (applied per token)
         x = self.ln(x + np.array([self.mlp_l2(xi) for xi in [self.mlp_l1(xi) for xi in x]]))
         return x
-    
+
     def parameters(self):
-        return self.ie.parameters()+self.mha.parameters()+self.ln.parameters()+self.mlp_l1.parameters()+self.mlp_l2.parameters()
+        # Return all model parameters
+        return (
+            self.ie.parameters()
+            + self.mha.parameters()
+            + self.ln.parameters()
+            + self.mlp_l1.parameters()
+            + self.mlp_l2.parameters()
+        )
 
 class TransformerDecoderLayer:
+    def __init__(self, embed_dim, mlp_dim, vocab_size, num_heads):
+        # Token embedding layer
+        self.ie = Embedding(vocab_size, embed_dim)
 
-    def __init__(self,embed_dim,mlp_dim,vocab_size,num_heads):
-        self.ie = Embedding(vocab_size,embed_dim)
-        self.mha = MultiHeadAttention(embed_dim,num_heads)
-        self.mask_mha = MultiHeadAttention(embed_dim,num_heads,mask=True)
+        self.pe = None
+        
+        # Multi-head self-attention with masking (for autoregressive behavior)
+        self.mask_mha = MultiHeadAttention(embed_dim, num_heads, mask=True)
+        
+        # Cross-attention over encoder output
+        self.mha = MultiHeadAttention(embed_dim, num_heads)
+        
+        # Layer normalization
         self.ln = LayerNorm(embed_dim)
-        self.mlp_l1 = LinearLayer(embed_dim,mlp_dim)
-        self.mlp_l2 = LinearLayer(mlp_dim,embed_dim,act=None)
+        
+        # Feedforward layers
+        self.mlp_l1 = LinearLayer(embed_dim, mlp_dim)
+        self.mlp_l2 = LinearLayer(mlp_dim, embed_dim, act=None)
+        
+        # Store embedding dimension
         self.embed_dim = embed_dim
+        self.seq_len = None
 
-    def __call__(self,*args):
+    def __call__(self, *args):
         return self.forward(*args)
 
-    def forward(self,Q,K,x): # Q and K is encoder output. x is input tokens.
-        assert type(Q)==np.ndarray and type(K)==np.ndarray and type(x)==np.ndarray,"input must be numpy array"
-        # x.shape = (seq,) tokens
-        seq_len,= x.shape
-        self.pe = PositionalEcnoding(seq_len,self.embed_dim)
+    def forward(self, Q, K, x):  # Q, K from encoder output; x is target tokens
+        assert (
+            type(Q) == np.ndarray and type(K) == np.ndarray and type(x) == np.ndarray
+        ), "input must be numpy array"
+        seq_len, = x.shape
+
+        if self.seq_len is None or self.seq_len != seq_len:
+            self.seq_len = seq_len
+        
+        # Positional encoding for target sequence
+        if self.pe is None:
+            self.pe = PositionalEcnoding(self.seq_len, self.embed_dim)
+        
+        # Embed target tokens and add positional encoding
         x = self.ie(x)
-        x = x+self.pe()
-        x = self.ln(x + self.mask_mha(x,x,x))
-        x = np.array(x) # layernorm return list so,
-        x = self.ln(x + self.mha(Q,K,x))
-        # each word at a time;
+        x = x + self.pe()
+        
+        # Apply masked self-attention (prevents seeing future tokens)
+        x = self.ln(x + self.mask_mha(x, x, x))
+        
+        # Cross-attention: decoder attends to encoder output
+        x = np.array(x)  # Ensure x is a NumPy array
+        x = self.ln(x + self.mha(Q, K, x))
+        
+        # Feedforward block with residual + LayerNorm
         x = self.ln(x + np.array([self.mlp_l2(xi) for xi in [self.mlp_l1(xi) for xi in x]]))
         return x
-    
+
     def parameters(self):
-        return self.ie.parameters()+self.mha.parameters()+self.ln.parameters()+self.mlp_l1.parameters()+self.mlp_l2.parameters()+self.mask_mha.parameters()
+        # Return all model parameters
+        return (
+            self.ie.parameters()
+            + self.mha.parameters()
+            + self.ln.parameters()
+            + self.mlp_l1.parameters()
+            + self.mlp_l2.parameters()
+            + self.mask_mha.parameters()
+        )
 
 class Flatten:
 
+    # 
     def __call__(self,x):
         return x.ravel().tolist()
 
