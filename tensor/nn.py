@@ -839,12 +839,7 @@ class MultiHeadAttention:
         # look-ahead mask, for scores.
         if self.mask:
             mask = np.triu(np.ones((self.num_heads,seq_len,seq_len)),k=1).astype(bool) # create the lookahead mask
-            scores = np.where(mask,-np.inf,scores) # replace true with -inf value
-
-            # solve the inf , float got no exp function error
-            # other are Tensor so, try to call exp method on loop, and got error on inf value;
-            inf_to_tensor = np.vectorize(lambda x: x if type(x)==Tensor else Tensor(x))
-            scores = inf_to_tensor(scores)
+            scores = np.where(mask,Tensor(-np.inf),scores) # replace true with -inf value
 
         # in higher model_dimension (embedding_dim), and heads; the product is high and exp(high) becomes too high, overflow.
         #solution , initialize the weights based on pytorch implementation uniform(-bound,bound)
