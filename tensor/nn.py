@@ -15,6 +15,59 @@ except ImportError:
     # Fall back to direct import (works when running file directly)
     from function import Relu,Sigmoid,Tanh,Relu,Softmax  # Activation functions, assumed to be implemented in `function` module
 
+class Relu(Relu):
+    # Multi dimension implementation remains!!!
+    def __call__(self,x):
+        # using vectorzie 
+        apply_relu = np.vectorize(lambda x: Relu.apply(x)) # apply function to each elements x in array
+        return apply_relu(x) # return outputs
+    
+    def parameters(self):
+        None
+
+class Softmax:
+
+    def __call__(self,x):
+        assert x.dtype=='O','element must be Tensor type'
+        return np.exp(x)/np.sum(np.exp(x),axis=-1,keepdims=True)
+    
+    def parameters(self):
+        None
+
+# class Softmax(Softmax):
+
+#     def __call__(self,logits):
+#         # probs = [] # probabilities of logits
+#         # for logit in logits: # compute probability for each logit
+#         #     probs.append(Softmax.apply(logit,logits))
+#         # return probs # return probabilites
+
+#         if type(logits) == np.ndarray:
+#             logits = logits.tolist()
+#         return [self.apply(logit,logits) for logit in logits]
+
+    
+#     def parameters():
+#         None
+
+
+
+class Tanh(Tanh):
+    def __call__(self,x):
+        apply_tanh = np.vectorize(lambda x: Tanh.apply(x))
+        return apply_tanh(x)
+    
+    def parameters(self):
+        None
+
+class Sigmoid(Sigmoid):
+
+    def __call__(self,x):
+        apply_sig = np.vectorize(lambda x: Sigmoid.apply(x))
+        return apply_sig(x)
+    
+    def parameters(self):
+        None
 
 class Neuron:
     """Represents a single neuron in a neural network, with weighted inputs and an optional activation function."""
@@ -105,6 +158,31 @@ class LinearLayer:
         String representation of the layer.
         """
         return f"{self.__name__} Activation: {self.act}"
+    
+
+
+class Linear:
+
+    def __init__(self,d_in,d_out,act=Relu):
+
+        k = 1/d_in
+        bound = np.sqrt(k)
+        w = np.random.uniform(-bound,bound,size=(d_in,d_out))
+        b = np.ones(d_out)
+        self.w = np_to_tensor()(w)
+        self.b = np_to_tensor()(b)
+        self.act =act
+
+    def forward(self,x):
+        x = np_to_tensor()(x)
+        x = np.matmul(x,self.w)+self.b
+        if self.act:
+            x = self.act()(x)
+        return x
+        
+    
+    def parameters(self):
+        return self.w.ravel().tolist()+self.b.ravel().tolist()
 
 
 class MLP:
@@ -444,43 +522,7 @@ class MaxPool2d:
         None
 
 
-class Relu(Relu):
-    # Multi dimension implementation remains!!!
-    def __call__(self,x):
-        # using vectorzie 
-        apply_relu = np.vectorize(lambda x: Relu.apply(x)) # apply function to each elements x in array
-        return apply_relu(x) # return outputs
-    
-    def parameters(self):
-        None
 
-class Softmax(Softmax):
-
-    def __call__(self,logits):
-        probs = [] # probabilities of logits
-        for logit in logits: # compute probability for each logit
-            probs.append(Softmax.apply(logit,logits))
-        return probs # return probabilites
-    
-    def parameters():
-        None
-
-class Tanh(Tanh):
-    def __call__(self,x):
-        apply_tanh = np.vectorize(lambda x: Tanh.apply(x))
-        return apply_tanh(x)
-    
-    def parameters(self):
-        None
-
-class Sigmoid(Sigmoid):
-
-    def __call__(self,x):
-        apply_sig = np.vectorize(lambda x: Sigmoid.apply(x))
-        return apply_sig(x)
-    
-    def parameters(self):
-        None
 
 class RNN:
     

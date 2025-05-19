@@ -117,7 +117,7 @@ class MCELoss(Function):
     Commonly used for classification tasks with multiple classes.
     """
 
-    def __call__(self, softmax_outputs, one_hot_label):
+    def __call__(self, softmax_outputs: list, one_hot_label: list):
         """
         Computes the multi-class cross-entropy loss.
         Args:

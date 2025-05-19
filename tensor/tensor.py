@@ -29,10 +29,9 @@ class Function:
     def apply(cls,*inputs): # cls refers to Function class
         """Perform forward computation and link to backward."""
         ctx = Context() # iniatialize the context
-
-        inputs = [inp if isinstance(inp, Tensor) else Tensor(inp) for inp in inputs]  # validate the *inputs (which is a and b)
+        
+        inputs = [inp if isinstance(inp, Tensor) or type(inp)==list else Tensor(inp) for inp in inputs]  # validate the *inputs (which is a and b), if input is list ignore
         output_data = cls.forward(ctx,*inputs) # operation; * sends arguments as tuple
-
 
         output = Tensor(output_data) # eg: output = f, f(a,b) = a*b
         output.grad_fn = cls # Link the Function to the output Tensor

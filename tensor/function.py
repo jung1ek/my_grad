@@ -91,7 +91,7 @@ class Sub(Function):
     @staticmethod
     def forward(ctx, a,b):
         ctx.save_for_backward(a,b)
-        return a.data + (-b.data)
+        return a.data - b.data
     @staticmethod
     def backward(ctx, output_grad):
         x,y = ctx.saved_tensors
